@@ -1,12 +1,11 @@
-import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, plainToInstance } from 'class-transformer';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUrl } from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
-import { Role } from '@/modules/auth';
+import { Role } from '@/modules/auth/enums/role.enum';
 
 import { User } from '../entities/user.entity';
-import { Gender } from '../enums/gender.enum';
 
 @Exclude()
 export class UserProfileDto {
@@ -23,7 +22,15 @@ export class UserProfileDto {
   })
   @Expose()
   @Transform(({ obj: user }) => user.account.email)
-  email!: string;
+  email!: string | null;
+
+  @ApiProperty({
+    description: 'The mobile phone of the user',
+    example: SwaggerExamples.PHONE,
+  })
+  @Expose()
+  @Transform(({ obj: user }) => user.account.phone)
+  phone!: string | null;
 
   @ApiProperty({
     description: 'The role of the user',
@@ -34,20 +41,11 @@ export class UserProfileDto {
   role!: Role;
 
   @ApiProperty({
-    description: 'The full name of the user',
+    description: 'The display name of the user',
     example: SwaggerExamples.FULLNAME,
   })
   @Expose()
-  fullName!: string;
-
-  @ApiProperty({
-    description: 'The gender of the user',
-    enum: Gender,
-    enumName: 'Gender',
-    example: SwaggerExamples.GENDER,
-  })
-  @Expose()
-  gender!: Gender | null;
+  displayName!: string;
 
   @ApiProperty({
     description: 'The timestamp indicating when the user is created',
@@ -83,9 +81,21 @@ export class DeletedUserProfileDto extends UserProfileDto {
 }
 
 export class UpdateUserDto {
-  @ApiHideProperty()
-  @Exclude()
-  id!: string;
+  @ApiProperty({
+    description: 'The email of the user',
+    example: SwaggerExamples.EMAIL,
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    description: 'The phone of the user',
+    example: SwaggerExamples.PHONE,
+    required: false,
+  })
+  phone?: string;
 
   @ApiProperty({
     description: 'The full name of the user',
@@ -94,16 +104,14 @@ export class UpdateUserDto {
   })
   @IsOptional()
   @IsString()
-  fullName?: string;
+  displayName?: string;
 
   @ApiProperty({
-    description: 'The gender of the user',
-    enum: Gender,
-    enumName: 'Gender',
-    example: SwaggerExamples.GENDER,
+    description: 'The avatar URL of the user',
+    example: SwaggerExamples.URL,
     required: false,
   })
   @IsOptional()
-  @IsEnum(Gender)
-  gender?: Gender;
+  @IsUrl()
+  avatar?: string;
 }

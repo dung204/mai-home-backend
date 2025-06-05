@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 
@@ -12,7 +6,8 @@ import { configs } from '@/base/configs';
 import { RedisService } from '@/base/database';
 import { BaseService } from '@/base/services';
 import { PasswordUtils } from '@/base/utils/password.utils';
-import { User, UsersService } from '@/modules/users';
+import { User } from '@/modules/users/entities/user.entity';
+import { UsersService } from '@/modules/users/services/users.service';
 
 import { JwtPayloadDto, LoginDto, LoginSuccessDto, RegisterDto } from '../dtos/auth.dtos';
 import { Account } from '../entities/account.entity';
@@ -35,21 +30,19 @@ export class AuthService extends BaseService<Account> {
   }
 
   async login(payload: LoginDto): Promise<LoginSuccessDto> {
-    const { email, password } = payload;
+    const { email, phone, password } = payload;
     const account = await this.findOne({
-      where: {
-        email,
-      },
+      where: [{ email }, { phone }],
     });
 
     if (!account) {
-      throw new UnauthorizedException('Email or password is incorrect.');
+      throw new UnauthorizedException('Email/phone or password is incorrect.');
     }
 
-    const isMatchPassword = PasswordUtils.isMatchPassword(password, account.password);
+    const isMatchPassword = PasswordUtils.isMatchPassword(password, account.password ?? '');
 
     if (!isMatchPassword) {
-      throw new UnauthorizedException('Email or password is incorrect.');
+      throw new UnauthorizedException('Email/phone or password is incorrect.');
     }
 
     const user = await this.usersService.findOne({
@@ -60,60 +53,89 @@ export class AuthService extends BaseService<Account> {
       ...(await this.getTokens({ sub: user!.id })),
       user: {
         id: user!.id,
-        fullName: user!.fullName,
+        displayName: user!.displayName,
       },
     };
   }
 
   async register(payload: RegisterDto): Promise<LoginSuccessDto> {
-    const { email, password } = payload;
+    const { email, phone, password } = payload;
     const existedAccount = await this.findOne({
-      where: { email },
+      where: { email, phone },
       withDeleted: true,
     });
     const hashedPassword = PasswordUtils.hashPassword(password);
-    let newAccount: Account;
 
     if (!existedAccount) {
       const userId = randomUUID();
-      newAccount = await this.createOne(userId, {
+
+      const newAccount = await this.createOne(userId, {
         id: userId,
         email,
+        phone,
         password: hashedPassword,
       });
+
+      let userInfo: User | null = null;
+      try {
+        userInfo = await this.usersService.findOne({
+          where: {
+            account: newAccount,
+          },
+        });
+      } catch (_err) {
+        /* ignore NotFoundException */
+      }
+
+      if (!userInfo) {
+        userInfo = await this.usersService.createOne(newAccount.id, {
+          account: newAccount,
+        });
+      }
+
+      return {
+        ...(await this.getTokens({ sub: userInfo.id })),
+        user: {
+          id: userInfo.id,
+          displayName: userInfo.displayName,
+        },
+      };
     } else if (!existedAccount.deleteTimestamp) {
-      throw new ConflictException('Email has already been registered.');
+      throw new ConflictException('Email/phone has already been registered.');
     } else {
-      newAccount = (
-        await this.update(existedAccount.id, {
-          ...existedAccount,
-          ...payload,
-          password: hashedPassword,
-          deleteTimestamp: null,
-          deleteUserId: null,
-        })
-      )[0];
-    }
+      let userInfo: User | null = null;
+      try {
+        userInfo = await this.usersService.findOne({
+          where: {
+            account: existedAccount,
+          },
+        });
+      } catch (_err) {
+        /* ignore NotFoundException */
+      }
 
-    let userInfo = await this.usersService.findOne({
-      where: {
-        account: newAccount,
-      },
-    });
+      if (!userInfo) {
+        userInfo = await this.usersService.createOne(existedAccount.id, {
+          account: existedAccount,
+        });
+      }
 
-    if (!userInfo) {
-      userInfo = await this.usersService.createOne(newAccount.id, {
-        account: newAccount,
+      await this.update(userInfo, {
+        ...existedAccount,
+        ...payload,
+        password: hashedPassword,
+        deleteTimestamp: null,
+        deleteUserId: null,
       });
-    }
 
-    return {
-      ...(await this.getTokens({ sub: userInfo.id })),
-      user: {
-        id: userInfo.id,
-        fullName: userInfo.fullName,
-      },
-    };
+      return {
+        ...(await this.getTokens({ sub: userInfo.id })),
+        user: {
+          id: userInfo.id,
+          displayName: userInfo.displayName,
+        },
+      };
+    }
   }
 
   async refresh(refreshToken: string): Promise<LoginSuccessDto> {
@@ -131,17 +153,13 @@ export class AuthService extends BaseService<Account> {
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found.');
-    }
-
     await this.blacklistToken(refreshToken);
 
     return {
       ...(await this.getTokens({ sub: userId })),
       user: {
-        id: user.id,
-        fullName: user.fullName,
+        id: user!.id,
+        displayName: user!.displayName,
       },
     };
   }

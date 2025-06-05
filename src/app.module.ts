@@ -6,10 +6,20 @@ import { DatabaseModule } from './base/database/database.module';
 import { ResponseTransformInterceptor } from './base/interceptors/response-transform.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtGuard } from './modules/auth/guards/jwt.guard';
+import { LocationModule } from './modules/location/location.module';
+import { PropertiesModule } from './modules/properties/properties.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
-  imports: [ConfigModule, DiscoveryModule, AuthModule, DatabaseModule, UsersModule],
+  imports: [
+    ConfigModule,
+    DiscoveryModule,
+    AuthModule,
+    DatabaseModule,
+    UsersModule,
+    PropertiesModule,
+    LocationModule,
+  ],
   providers: [
     {
       provide: APP_INTERCEPTOR,

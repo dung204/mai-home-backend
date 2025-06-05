@@ -2,9 +2,10 @@ import { ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 
-import { User } from '@/modules/users';
+import { User } from '@/modules/users/entities/user.entity';
 
 import { IS_ADMIN_KEY } from '../decorators/admin.decorator';
+import { OPTIONAL_AUTH_KEY } from '../decorators/optional-auth.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Role } from '../enums/role.enum';
 
@@ -22,12 +23,20 @@ export class JwtGuard extends AuthGuard(['jwt']) {
       context.getHandler(),
       context.getClass(),
     ]);
+    const isOptionalAuth = this.reflector.getAllAndOverride<boolean>(OPTIONAL_AUTH_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (isPublic) {
       return true;
     }
 
     const isAuthenticated = await super.canActivate(context);
+
+    if (!isAuthenticated && isOptionalAuth) {
+      return true;
+    }
 
     if (!!isAuthenticated && isAdmin) {
       const currentUser: User = context.switchToHttp().getRequest().user;

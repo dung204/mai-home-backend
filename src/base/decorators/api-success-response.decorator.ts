@@ -2,7 +2,7 @@ import { Type, applyDecorators } from '@nestjs/common';
 import { ApiExtraModels, ApiResponse, ApiResponseSchemaHost, getSchemaPath } from '@nestjs/swagger';
 
 import { SwaggerExamples } from '../constants';
-import { OrderDto, PaginationDto } from '../dtos';
+import { PaginationDto } from '../dtos/pagination.dto';
 
 type ApiSuccessResponseOptions<DataDto extends Type<unknown>> = Omit<
   ApiResponseSchemaHost,
@@ -62,7 +62,20 @@ export const ApiSuccessResponse = <DataDto extends Type<any>>({
                   },
                 },
                 order: {
-                  $ref: getSchemaPath(OrderDto),
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      field: {
+                        description: 'The field to sort',
+                        example: SwaggerExamples.ORDER_FIELD,
+                      },
+                      direction: {
+                        description: 'The direction to sort',
+                        example: SwaggerExamples.ORDER_DIRECTION,
+                      },
+                    },
+                  },
                 },
               },
             },

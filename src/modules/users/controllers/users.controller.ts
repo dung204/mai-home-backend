@@ -14,7 +14,8 @@ import { IsNull, Not } from 'typeorm';
 
 import { ApiSuccessResponse } from '@/base/decorators';
 import { QueryDto } from '@/base/dtos';
-import { Admin, CurrentUser } from '@/modules/auth';
+import { Admin } from '@/modules/auth/decorators/admin.decorator';
+import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 
 import { DeletedUserProfileDto, UpdateUserDto, UserProfileDto } from '../dtos/user.dtos';
 import { User } from '../entities/user.entity';
@@ -48,11 +49,12 @@ export class UsersController {
     @CurrentUser() currentUser: User,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    const user = await this.usersService.updateUserProfile({
-      ...updateUserDto,
-      id: currentUser.id,
+    const users = await this.usersService.update(currentUser, updateUserDto, {
+      where: {
+        id: currentUser.id,
+      },
     });
-    return UserProfileDto.fromUser(user);
+    return UserProfileDto.fromUser(users[0]);
   }
 
   @ApiOperation({
@@ -66,8 +68,7 @@ export class UsersController {
   @Get('/')
   async findAllUsers(@Query() queryDto: QueryDto) {
     const { data: users, metadata } = await this.usersService.find({
-      filters: queryDto,
-      relations: ['account'],
+      queryDto: queryDto,
     });
 
     return {
@@ -87,11 +88,10 @@ export class UsersController {
   @Get('/deleted')
   async findAllDeletedUsers(@Query() queryDto: QueryDto) {
     const { data: users, metadata } = await this.usersService.find({
-      filters: {
+      queryDto: {
         ...queryDto,
         deleteTimestamp: Not(IsNull()),
       },
-      relations: ['account'],
       withDeleted: true,
     });
 
@@ -111,7 +111,7 @@ export class UsersController {
   @Delete('/delete/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteUser(@CurrentUser() currentUser: User, @Param('id') id: string) {
-    await this.usersService.softDelete(currentUser.id, {
+    await this.usersService.softDelete(currentUser, {
       where: { id },
     });
   }
@@ -126,7 +126,7 @@ export class UsersController {
   @Admin()
   @Patch('/restore/:id')
   async restoreUser(@CurrentUser() currentUser: User, @Param('id') id: string) {
-    return this.usersService.restore(currentUser.id, {
+    return this.usersService.restore(currentUser, {
       where: { id },
     });
   }

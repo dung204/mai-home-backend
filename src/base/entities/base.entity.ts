@@ -21,8 +21,8 @@ export class BaseEntity {
   })
   deleteTimestamp: Date | null = null;
 
-  @Column('uuid')
-  createUserId!: string;
+  @Column('uuid', { nullable: true })
+  createUserId: string | null = null;
 
   @Column('uuid', { nullable: true })
   updateUserId: string | null = null;

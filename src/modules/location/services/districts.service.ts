@@ -1,0 +1,64 @@
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { FindOneOptions, Raw } from 'typeorm';
+
+import { BaseService, CustomFindManyOptions } from '@/base/services';
+import { User } from '@/modules/users/entities/user.entity';
+
+import { DistrictQueryDto } from '../dtos/location.dtos';
+import { District } from '../entities/district.entity';
+import { DistrictsRepository } from '../repositories/districts.repository';
+import { CitiesService } from './cities.service';
+
+@Injectable()
+export class DistrictsService extends BaseService<District> {
+  constructor(
+    protected readonly repository: DistrictsRepository,
+    private readonly citiesService: CitiesService,
+  ) {
+    const logger = new Logger(DistrictsService.name);
+    super(repository, logger);
+  }
+
+  protected async preFind(
+    options: CustomFindManyOptions<District>,
+    _currentUser?: User,
+  ): Promise<CustomFindManyOptions<District>> {
+    const preProcessedOptions = await super.preFind(options);
+
+    if (preProcessedOptions.queryDto) {
+      const { cityId, name } = preProcessedOptions.queryDto as DistrictQueryDto;
+
+      const city = await this.citiesService.findOne({
+        where: {
+          id: cityId,
+        },
+      });
+
+      preProcessedOptions.where = {
+        ...preProcessedOptions.where,
+        city: city!,
+        ...(name && { name: Raw((alias) => `LOWER("${alias}") LIKE '%:name%'`, { name }) }),
+      };
+    }
+
+    return preProcessedOptions;
+  }
+
+  protected preFindOne(
+    options: FindOneOptions<District>,
+    _currentUser?: User,
+  ): FindOneOptions<District> {
+    const preProcessedOptions = super.preFindOne(options, _currentUser);
+
+    return {
+      ...preProcessedOptions,
+      relations: {
+        city: true,
+      },
+    };
+  }
+
+  protected onFindOneNotFound(_options: FindOneOptions<District>, _currentUser?: User) {
+    throw new NotFoundException('District not found.');
+  }
+}

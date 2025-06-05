@@ -1,8 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { FindOneOptions } from 'typeorm';
 
-import { BaseService } from '@/base/services';
+import { BaseService, CustomFindManyOptions } from '@/base/services';
 
-import { UpdateUserDto } from '../dtos/user.dtos';
 import { User } from '../entities/user.entity';
 import { UsersRepository } from '../repositories/users.repository';
 
@@ -13,20 +13,32 @@ export class UsersService extends BaseService<User> {
     super(repository, logger);
   }
 
-  async updateUserProfile({ id, ...payload }: UpdateUserDto) {
-    const isExistedUser = await this.repository.existsBy({
-      id,
-    });
+  protected async preFind(
+    options: CustomFindManyOptions<User>,
+    _currentUser?: User,
+  ): Promise<CustomFindManyOptions<User>> {
+    const preProcessedOptions = await super.preFind(options);
 
-    if (!isExistedUser) {
-      throw new NotFoundException('User not found');
-    }
+    return {
+      ...preProcessedOptions,
+      relations: {
+        account: true,
+      },
+    };
+  }
 
-    return (
-      await this.update(id, payload, {
-        where: { id },
-        relations: ['account'],
-      })
-    )[0];
+  protected preFindOne(options: FindOneOptions<User>, _currentUser?: User): FindOneOptions<User> {
+    const preProcessedOptions = super.preFindOne(options);
+
+    return {
+      ...preProcessedOptions,
+      relations: {
+        account: true,
+      },
+    };
+  }
+
+  protected onFindOneNotFound(_options: FindOneOptions<User>, _currentUser?: User): void {
+    throw new NotFoundException('User not found.');
   }
 }

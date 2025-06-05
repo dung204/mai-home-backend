@@ -22,6 +22,7 @@ services:
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_DATABASE_NAME}
+      - POSTGRES_INITDB_ARGS=--locale-provider=icu --icu-locale=vi
       - TZ=posix/Asia/Ho_Chi_Minh
     restart: unless-stopped
     networks:

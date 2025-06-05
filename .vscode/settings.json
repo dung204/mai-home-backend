@@ -1,4 +1,16 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
-  "eslint.useFlatConfig": true
+  "eslint.useFlatConfig": true,
+  "editor.foldingImportsByDefault": true,
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5432,
+      "driver": "PostgreSQL",
+      "name": "mai_home_db",
+      "database": "mai_home_db",
+      "username": "postgres"
+    }
+  ]
 }

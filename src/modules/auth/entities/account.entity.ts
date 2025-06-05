@@ -12,12 +12,18 @@ export class Account extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column('varchar', { length: 256, unique: true })
-  email!: string;
+  @Column('varchar', { length: 12, unique: true, nullable: true })
+  phone: string | null = null;
 
-  @Column('text')
-  password!: string;
+  @Column('varchar', { length: 256, unique: true, nullable: true })
+  email: string | null = null;
+
+  @Column('text', { nullable: true })
+  password: string | null = null;
 
   @Column('enum', { enum: Role, enumName: 'Role', default: Role.USER })
   role: Role = Role.USER;
+
+  @Column('varchar', { nullable: true })
+  googleId: string | null = null;
 }

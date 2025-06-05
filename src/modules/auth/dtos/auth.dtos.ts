@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsJWT, IsNotEmpty, Length } from 'class-validator';
+import { IsEmail, IsJWT, IsMobilePhone, IsNotEmpty, Length, ValidateIf } from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
 
@@ -7,11 +7,24 @@ export class LoginDto {
   @ApiProperty({
     description: 'The email address of the user',
     example: SwaggerExamples.EMAIL,
+    required: false,
   })
+  @ValidateIf((obj) => !obj.phone)
   @IsNotEmpty()
   @IsEmail()
   @Length(6, 256)
-  email!: string;
+  email?: string;
+
+  @ApiProperty({
+    description: 'The mobile phone of the user',
+    example: SwaggerExamples.PHONE,
+    required: false,
+  })
+  @ValidateIf((obj) => !obj.email)
+  @IsNotEmpty()
+  @IsMobilePhone('vi-VN')
+  @Length(6, 256)
+  phone?: string;
 
   @ApiProperty({
     description: 'The password of the user',
@@ -51,7 +64,7 @@ class LoginUserPayload {
     example: SwaggerExamples.FULLNAME,
     nullable: true,
   })
-  fullName!: string | null;
+  displayName!: string | null;
 }
 
 export class LoginSuccessDto {

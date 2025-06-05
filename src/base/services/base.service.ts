@@ -5,18 +5,17 @@ import {
   FindOneOptions,
   FindOptionsOrder,
   FindOptionsWhere,
-  Raw,
   Repository,
 } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
-import { User } from '@/modules/users';
+import { User } from '@/modules/users/entities/user.entity';
 
 import { PaginationDto, QueryDto } from '../dtos';
 import { BaseEntity } from '../entities';
 
-interface CustomFindManyOptions<Entity extends BaseEntity> extends FindManyOptions<Entity> {
-  filters?: QueryDto & Record<string, any>;
+export interface CustomFindManyOptions<Entity extends BaseEntity> extends FindManyOptions<Entity> {
+  queryDto?: QueryDto & Record<string, any>;
 }
 
 export class BaseService<Entity extends BaseEntity> {
@@ -30,7 +29,7 @@ export class BaseService<Entity extends BaseEntity> {
   }
 
   async find(options: CustomFindManyOptions<Entity> = {}, currentUser?: User) {
-    const preProcessedOptions = this.preFind(options, currentUser);
+    const preProcessedOptions = await this.preFind(options, currentUser);
     const data = await this.repository.find(preProcessedOptions);
     return this.postFind(data, preProcessedOptions, currentUser);
   }
@@ -38,6 +37,9 @@ export class BaseService<Entity extends BaseEntity> {
   async findOne(options: FindManyOptions<Entity> = {}, currentUser?: User) {
     const preProcessedOptions = this.preFindOne(options, currentUser);
     const data = await this.repository.findOne(preProcessedOptions);
+    if (!data) {
+      this.onFindOneNotFound(options, currentUser);
+    }
     return this.postFindOne(data, preProcessedOptions, currentUser);
   }
 
@@ -46,72 +48,81 @@ export class BaseService<Entity extends BaseEntity> {
     return this.repository.count(preProcessedOptions);
   }
 
-  async createOne(userId: string, createDto: DeepPartial<Entity>) {
-    const doc = this.preCreateOne(userId, createDto);
+  async createOne(userId: string, createDto: DeepPartial<Entity>, currentUser?: User) {
+    const doc = await this.preCreateOne(userId, createDto, currentUser);
     const record = await this.repository.save(doc);
-    return this.postCreateOne(record, createDto);
+    return this.postCreateOne(record, createDto, currentUser);
   }
 
-  async create(userId: string, createDtos: DeepPartial<Entity>[]) {
-    const docs = this.preCreate(userId, createDtos);
+  async create(userId: string, createDtos: DeepPartial<Entity>[], currentUser?: User) {
+    const docs = await this.preCreate(userId, createDtos, currentUser);
     const records = await this.repository.save(docs);
-    return this.postCreate(records, createDtos);
+    return this.postCreate(records, createDtos, currentUser);
   }
 
-  async update(userId: string, updateDto: DeepPartial<Entity>, options?: FindManyOptions<Entity>) {
-    const oldRecords = (await this.find(options))!.data;
+  async update(
+    currentUser: User,
+    updateDto: DeepPartial<Entity>,
+    options?: FindManyOptions<Entity>,
+  ) {
+    const oldRecords = (await this.find(options, currentUser))!.data;
     if (oldRecords.length === 0) {
       throw new NotFoundException('Record(s) not found!');
     }
 
-    const doc = this.preUpdate(userId, updateDto, oldRecords, options);
+    const doc = this.preUpdate(currentUser, updateDto, oldRecords, options);
     const newRecords = await this.repository.save(
-      oldRecords.map(
-        (record) => {
-          const { updateTimestamp, ...recordData } = record;
-          return {
-            ...recordData,
-            ...doc,
-          } as DeepPartial<Entity>;
-        },
-        { reload: true },
-      ),
+      oldRecords.map((record) => {
+        const { updateTimestamp, ...recordData } = record;
+        return {
+          ...recordData,
+          ...doc,
+        } as DeepPartial<Entity>;
+      }),
     );
-    return this.postUpdate(newRecords, oldRecords, updateDto, options);
+    return this.postUpdate(newRecords, oldRecords, updateDto, options, currentUser);
   }
 
   async softDelete(
     /**
      * The ID of the user who perform the delete operation
      */
-    userId: string,
+    currentUser: User,
     options?: FindManyOptions<Entity>,
   ) {
-    this.preSoftDelete(userId, options);
-    const deletedRecords = await this.update(
-      userId,
+    const records = (await this.find(options, currentUser))!.data;
+    if (records.length === 0) {
+      throw new NotFoundException('Record(s) not found!');
+    }
+
+    this.preSoftDelete(currentUser, options);
+    await this.repository.update(
+      (options?.where ?? {}) as FindOptionsWhere<Entity>,
       {
-        updateUserId: userId,
-        deleteTimestamp: new Date(),
-        deleteUserId: userId,
-      } as DeepPartial<Entity>,
-      options,
+        deleteUserId: currentUser.id,
+        updateUserId: currentUser.id,
+      } as unknown as QueryDeepPartialEntity<Entity>,
     );
-    return this.postSoftDelete(deletedRecords, options);
+    const deletedRecords = await this.repository.softRemove(records);
+    return this.postSoftDelete(currentUser, deletedRecords, options);
   }
 
-  async restore(userId: string, options?: FindManyOptions<Entity>) {
-    this.preRestore(userId, options);
-    const deletedRecords = await this.update(
-      userId,
+  async restore(currentUser: User, options?: FindManyOptions<Entity>) {
+    const records = (await this.find(options, currentUser))!.data;
+    if (records.length === 0) {
+      throw new NotFoundException('Record(s) not found!');
+    }
+
+    this.preRestore(currentUser, options);
+    await this.repository.update(
+      (options?.where ?? {}) as FindOptionsWhere<Entity>,
       {
-        updateUserId: userId,
-        deleteTimestamp: null,
         deleteUserId: null,
-      } as DeepPartial<Entity>,
-      options,
+        updateUserId: currentUser.id,
+      } as unknown as QueryDeepPartialEntity<Entity>,
     );
-    return this.postRestore(deletedRecords, options);
+    const restoredRecords = await this.repository.recover(records);
+    return this.postRestore(restoredRecords, currentUser, options);
   }
 
   /* ---------- Pre-processing functions ---------- */
@@ -123,15 +134,13 @@ export class BaseService<Entity extends BaseEntity> {
      * but can be used in derived class
      */
     _currentUser?: User,
-  ): CustomFindManyOptions<Entity> {
+  ): CustomFindManyOptions<Entity> | Promise<CustomFindManyOptions<Entity>> {
     // TODO: Add WHERE, ORDER, LIMIT, OFFSET clause
     const { skip, take } = this.getPaginationProps(options);
     const order = this.getOrderProps(options);
-    const where = this.getFilterProps(options);
 
     return {
       ...options,
-      where,
       skip,
       take,
       order,
@@ -149,6 +158,19 @@ export class BaseService<Entity extends BaseEntity> {
     return options;
   }
 
+  protected onFindOneNotFound(
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _options: FindOneOptions<Entity>,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
+  ) {}
+
   protected preCount(
     options: CustomFindManyOptions<Entity>,
     /**
@@ -157,14 +179,18 @@ export class BaseService<Entity extends BaseEntity> {
      */
     _currentUser?: User,
   ): CustomFindManyOptions<Entity> {
-    const where = this.getFilterProps(options);
-    return {
-      ...options,
-      where,
-    };
+    return options;
   }
 
-  protected preCreateOne(userId: string, createDto: any): DeepPartial<Entity> {
+  protected async preCreateOne(
+    userId: string,
+    createDto: any,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
+  ): Promise<DeepPartial<Entity>> {
     return {
       ...createDto,
       createUserId: userId,
@@ -172,7 +198,15 @@ export class BaseService<Entity extends BaseEntity> {
     };
   }
 
-  protected preCreate(userId: string, createDtos: any[]): DeepPartial<Entity>[] {
+  protected async preCreate(
+    userId: string,
+    createDtos: any[],
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
+  ): Promise<DeepPartial<Entity>[]> {
     return createDtos.map((dto) => ({
       ...dto,
       createUserId: userId,
@@ -181,7 +215,7 @@ export class BaseService<Entity extends BaseEntity> {
   }
 
   protected preUpdate(
-    userId: string,
+    currentUser: User,
     updateDto: any,
     /**
      * This arg is not used in the base class,
@@ -193,10 +227,14 @@ export class BaseService<Entity extends BaseEntity> {
      * but can be used in derived class
      */
     _options?: FindManyOptions<Entity>,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
   ): QueryDeepPartialEntity<Entity> {
     return {
       ...updateDto,
-      updateUserId: userId,
+      updateUserId: currentUser.id,
     };
   }
 
@@ -205,7 +243,7 @@ export class BaseService<Entity extends BaseEntity> {
      * This arg is not used in the base class,
      * but can be used in derived class
      */
-    _userId: string,
+    _currentUser: User,
     /**
      * This arg is not used in the base class,
      * but can be used in derived class
@@ -218,7 +256,7 @@ export class BaseService<Entity extends BaseEntity> {
      * This arg is not used in the base class,
      * but can be used in derived class
      */
-    _userId: string,
+    _currentUser: User,
     /**
      * This arg is not used in the base class,
      * but can be used in derived class
@@ -237,8 +275,8 @@ export class BaseService<Entity extends BaseEntity> {
      */
     _currentUser?: User,
   ) {
-    const { filters } = options;
-    const { page, pageSize, order, ...filterKeys } = filters ?? {};
+    const { queryDto } = options;
+    const { page, pageSize, order, ...filterKeys } = queryDto ?? {};
 
     return {
       data,
@@ -276,6 +314,11 @@ export class BaseService<Entity extends BaseEntity> {
      * but can be used in derived class
      */
     _createDto: any,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
   ) {
     return record;
   }
@@ -287,6 +330,11 @@ export class BaseService<Entity extends BaseEntity> {
      * but can be used in derived class
      */
     _createDtos: any[],
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
   ) {
     return records;
   }
@@ -308,22 +356,42 @@ export class BaseService<Entity extends BaseEntity> {
      * but can be used in derived class
      */
     _options?: FindManyOptions<Entity>,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser?: User,
   ) {
     return newRecords;
   }
 
-  protected postSoftDelete(deletedRecords: Entity[], _options?: FindManyOptions<Entity>) {
+  protected postSoftDelete(
+    _currentUser: User,
+    deletedRecords: Entity[],
+    _options?: FindManyOptions<Entity> /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */,
+  ) {
     return deletedRecords;
   }
 
-  protected postRestore(restoredRecords: Entity[], _options?: FindManyOptions<Entity>) {
+  protected postRestore(
+    restoredRecords: Entity[],
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _currentUser: User,
+    _options?: FindManyOptions<Entity>,
+  ) {
     return restoredRecords;
   }
 
   private getPaginationProps(options: CustomFindManyOptions<Entity>) {
-    const { filters } = options;
-    const page = filters?.page || 1;
-    const take = filters?.pageSize || 10;
+    const { queryDto } = options;
+    const page = queryDto?.page || 1;
+    const take = queryDto?.pageSize || 10;
     const skip = (page - 1) * take;
     return {
       take,
@@ -334,47 +402,24 @@ export class BaseService<Entity extends BaseEntity> {
   private getOrderProps(
     options: CustomFindManyOptions<Entity>,
   ): FindOptionsOrder<Entity> | undefined {
-    const { filters, order } = options;
+    const { queryDto, order } = options;
 
-    if (filters?.order) {
+    if (queryDto?.order) {
       return {
         ...order,
-        ...Object.fromEntries(filters.order.map((o) => o.split(':'))),
+        ...Object.fromEntries(queryDto.order.map((o) => o.split(':'))),
       };
     }
 
     return order;
   }
 
-  private getFilterProps(
-    options: CustomFindManyOptions<Entity>,
-  ): FindOptionsWhere<Entity> | FindOptionsWhere<Entity>[] | undefined {
-    const { filters, where } = options;
-
-    const { page, pageSize, order, ...filterKeys } = filters ?? {};
-    const additionalWhere = Object.fromEntries(
-      Object.entries(filterKeys).map(([key, value]) => [
-        key,
-        Raw((alias) => `LOWER(CAST("${alias}" AS TEXT)) LIKE '%${String(value).toLowerCase()}%'`),
-      ]),
-    ) as FindOptionsWhere<Entity>;
-
-    if (Array.isArray(where)) {
-      return [...where, additionalWhere];
-    }
-
-    return {
-      ...where,
-      ...additionalWhere,
-    };
-  }
-
   private async getPaginationResponse(
     options: CustomFindManyOptions<Entity>,
   ): Promise<PaginationDto> {
-    const { filters } = options;
-    const page = filters?.page || 1;
-    const pageSize = filters?.pageSize || 10;
+    const { queryDto } = options;
+    const page = queryDto?.page || 1;
+    const pageSize = queryDto?.pageSize || 10;
     try {
       const { take, skip, ...opts } = options;
       const total = await this.count(opts);
