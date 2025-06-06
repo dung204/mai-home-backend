@@ -27,8 +27,11 @@ export class UsersService extends BaseService<User> {
     };
   }
 
-  protected preFindOne(options: FindOneOptions<User>, _currentUser?: User): FindOneOptions<User> {
-    const preProcessedOptions = super.preFindOne(options);
+  protected async preFindOne(
+    options: FindOneOptions<User>,
+    _currentUser?: User,
+  ): Promise<FindOneOptions<User>> {
+    const preProcessedOptions = await super.preFindOne(options);
 
     return {
       ...preProcessedOptions,
@@ -38,7 +41,7 @@ export class UsersService extends BaseService<User> {
     };
   }
 
-  protected onFindOneNotFound(_options: FindOneOptions<User>, _currentUser?: User): void {
+  protected async onFindOneNotFound(_options: FindOneOptions<User>, _currentUser?: User) {
     throw new NotFoundException('User not found.');
   }
 }

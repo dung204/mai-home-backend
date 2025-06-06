@@ -30,7 +30,7 @@ export class CitiesService extends BaseService<City> {
     return preProcessedOptions;
   }
 
-  protected onFindOneNotFound(_options: FindOneOptions<City>, _currentUser?: User): void {
+  protected async onFindOneNotFound(_options: FindOneOptions<City>, _currentUser?: User) {
     throw new NotFoundException('City not found.');
   }
 }

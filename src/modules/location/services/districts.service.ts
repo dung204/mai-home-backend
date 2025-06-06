@@ -44,11 +44,11 @@ export class DistrictsService extends BaseService<District> {
     return preProcessedOptions;
   }
 
-  protected preFindOne(
+  protected async preFindOne(
     options: FindOneOptions<District>,
     _currentUser?: User,
-  ): FindOneOptions<District> {
-    const preProcessedOptions = super.preFindOne(options, _currentUser);
+  ): Promise<FindOneOptions<District>> {
+    const preProcessedOptions = await super.preFindOne(options, _currentUser);
 
     return {
       ...preProcessedOptions,
@@ -58,7 +58,7 @@ export class DistrictsService extends BaseService<District> {
     };
   }
 
-  protected onFindOneNotFound(_options: FindOneOptions<District>, _currentUser?: User) {
+  protected async onFindOneNotFound(_options: FindOneOptions<District>, _currentUser?: User) {
     throw new NotFoundException('District not found.');
   }
 }

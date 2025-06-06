@@ -49,8 +49,11 @@ export class WardsService extends BaseService<Ward> {
     };
   }
 
-  protected preFindOne(options: FindOneOptions<Ward>, _currentUser?: User): FindOneOptions<Ward> {
-    const preProcessedOptions = super.preFindOne(options, _currentUser);
+  protected async preFindOne(
+    options: FindOneOptions<Ward>,
+    _currentUser?: User,
+  ): Promise<FindOneOptions<Ward>> {
+    const preProcessedOptions = await super.preFindOne(options, _currentUser);
 
     return {
       ...preProcessedOptions,
@@ -60,7 +63,7 @@ export class WardsService extends BaseService<Ward> {
     };
   }
 
-  protected onFindOneNotFound(_options: FindOneOptions<Ward>, _currentUser?: User) {
+  protected async onFindOneNotFound(_options: FindOneOptions<Ward>, _currentUser?: User) {
     throw new NotFoundException('Ward not found.');
   }
 }

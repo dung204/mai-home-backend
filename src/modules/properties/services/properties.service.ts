@@ -66,11 +66,11 @@ export class PropertiesService extends BaseService<Property> {
     };
   }
 
-  protected preFindOne(
+  protected async preFindOne(
     options: FindOneOptions<Property>,
     _currentUser?: User,
-  ): FindOneOptions<Property> {
-    const preProcessedOptions = super.preFindOne(options, _currentUser);
+  ): Promise<FindOneOptions<Property>> {
+    const preProcessedOptions = await super.preFindOne(options, _currentUser);
 
     return {
       ...preProcessedOptions,
@@ -82,7 +82,7 @@ export class PropertiesService extends BaseService<Property> {
     };
   }
 
-  protected onFindOneNotFound(_options: FindOneOptions<Property>, _currentUser?: User): void {
+  protected async onFindOneNotFound(_options: FindOneOptions<Property>, _currentUser?: User) {
     throw new NotFoundException('Property not found.');
   }
 
@@ -91,7 +91,7 @@ export class PropertiesService extends BaseService<Property> {
     createDto: CreatePropertyDto,
     currentUser: User,
   ): Promise<DeepPartial<Property>> {
-    const preProcessedOptions = await super.preCreateOne(userId, createDto);
+    const preProcessedOptions = await super.preCreateOne(userId, createDto, currentUser);
     const { cityId, districtId, wardId } = createDto;
 
     const city = await this.citiesService.findOne({
