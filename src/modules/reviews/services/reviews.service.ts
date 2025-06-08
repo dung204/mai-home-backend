@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import { And, DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
 import { User } from '@/modules/users/entities/user.entity';
@@ -28,6 +28,10 @@ export class ReviewsService extends BaseService<Review> {
         ...preProcessedOptions.where,
         ...(minStars && { stars: MoreThanOrEqual(minStars) }),
         ...(maxStars && { stars: LessThanOrEqual(maxStars) }),
+        ...(minStars &&
+          maxStars && {
+            stars: And(MoreThanOrEqual(minStars), LessThanOrEqual(maxStars)),
+          }),
       };
     }
 

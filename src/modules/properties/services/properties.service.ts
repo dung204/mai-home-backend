@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual, Raw } from 'typeorm';
+import { And, DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual, Raw } from 'typeorm';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
 import { CitiesService } from '@/modules/location/services/cities.service';
@@ -51,8 +51,17 @@ export class PropertiesService extends BaseService<Property> {
         ...(wardId && { wardId }),
         ...(minPricePerMonth && { pricePerMonth: MoreThanOrEqual(minPricePerMonth) }),
         ...(maxPricePerMonth && { pricePerMonth: LessThanOrEqual(maxPricePerMonth) }),
+        ...(minPricePerMonth &&
+          maxPricePerMonth && {
+            pricePerMonth: And(
+              MoreThanOrEqual(minPricePerMonth),
+              LessThanOrEqual(maxPricePerMonth),
+            ),
+          }),
         ...(minArea && { area: MoreThanOrEqual(minArea) }),
         ...(maxArea && { area: LessThanOrEqual(maxArea) }),
+        ...(minArea &&
+          maxArea && { area: And(MoreThanOrEqual(minArea), LessThanOrEqual(maxArea)) }),
       };
     }
 

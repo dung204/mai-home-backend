@@ -9,6 +9,7 @@ import { JwtGuard } from './modules/auth/guards/jwt.guard';
 import { LocationModule } from './modules/location/location.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
+import { TransactionsModule } from './modules/transactions/transactions.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { UsersModule } from './modules/users/users.module';
     PropertiesModule,
     LocationModule,
     ReviewsModule,
+    TransactionsModule,
   ],
   providers: [
     {
