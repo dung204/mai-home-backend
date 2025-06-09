@@ -7,7 +7,7 @@
     "assets": [
       {
         "include": "../base/database/scripts/**/*.sql",
-        "outDir": "./dist/base/database/scripts",
+        "outDir": "./dist/base",
         "watchAssets": true
       },
       {
