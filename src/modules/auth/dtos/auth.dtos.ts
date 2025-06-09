@@ -1,41 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsJWT, IsMobilePhone, IsNotEmpty, Length, ValidateIf } from 'class-validator';
+import { IsEmail, IsJWT, IsNotEmpty, Length } from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
 
-export class LoginDto {
+export class GetOtpDto {
   @ApiProperty({
-    description: 'The email address of the user',
+    description: 'The email address to get the OTP',
     example: SwaggerExamples.EMAIL,
     required: false,
   })
-  @ValidateIf((obj) => !obj.phone)
-  @IsNotEmpty()
   @IsEmail()
   @Length(6, 256)
-  email?: string;
-
-  @ApiProperty({
-    description: 'The mobile phone of the user',
-    example: SwaggerExamples.PHONE,
-    required: false,
-  })
-  @ValidateIf((obj) => !obj.email)
-  @IsNotEmpty()
-  @IsMobilePhone('vi-VN')
-  @Length(6, 256)
-  phone?: string;
-
-  @ApiProperty({
-    description: 'The password of the user',
-    example: SwaggerExamples.PASSWORD,
-  })
-  @IsNotEmpty()
-  @Length(8, 100)
-  password!: string;
+  email!: string;
 }
 
-export class RegisterDto extends LoginDto {}
+export class VerifyOtpDto extends GetOtpDto {
+  @ApiProperty({
+    description: 'The OTP to verify',
+  })
+  @IsNotEmpty()
+  otp!: string;
+}
 
 export class RefreshTokenDto {
   @ApiProperty({

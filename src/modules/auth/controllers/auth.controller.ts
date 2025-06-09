@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, HttpCode, HttpStatus, Post, Request } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiConflictResponse,
   ApiNoContentResponse,
   ApiOperation,
   ApiUnauthorizedResponse,
@@ -11,7 +10,7 @@ import { ApiSuccessResponse } from '@/base/decorators';
 import { CustomRequest } from '@/base/dtos';
 
 import { Public } from '../decorators/public.decorator';
-import { LoginDto, LoginSuccessDto, RefreshTokenDto, RegisterDto } from '../dtos/auth.dtos';
+import { GetOtpDto, LoginSuccessDto, RefreshTokenDto, VerifyOtpDto } from '../dtos/auth.dtos';
 import { AuthService } from '../services/auth.service';
 
 @Controller('auth')
@@ -20,36 +19,35 @@ export class AuthController {
 
   @Public()
   @ApiOperation({
-    summary: 'Login',
+    summary: 'Get OTP using email or phone',
   })
-  @ApiSuccessResponse({
-    schema: LoginSuccessDto,
-    isArray: false,
-    description: 'Login successfully',
+  @ApiNoContentResponse({
+    description: 'OTP has been sent',
   })
   @ApiUnauthorizedResponse({
-    description: 'The email or password is invalid.',
+    description: 'The email/phone is invalid.',
   })
-  @Post('/login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  @Post('/get-otp')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async getOtp(@Body() getOtpDto: GetOtpDto) {
+    return this.authService.getOtp(getOtpDto);
   }
 
   @Public()
   @ApiOperation({
-    summary: 'Register',
+    summary: 'Verify OTP, then login if the account exists, otherwise register a new account',
   })
   @ApiSuccessResponse({
     status: HttpStatus.CREATED,
     schema: LoginSuccessDto,
-    description: 'Register successfully',
+    description: 'OTP verified successfully',
   })
-  @ApiConflictResponse({
-    description: 'Email already taken',
+  @ApiUnauthorizedResponse({
+    description: 'The email/phone is invalid.',
   })
-  @Post('/register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  @Post('/verify-otp')
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyOtp(verifyOtpDto);
   }
 
   @Public()

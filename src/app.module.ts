@@ -6,6 +6,7 @@ import { DatabaseModule } from './base/database/database.module';
 import { ResponseTransformInterceptor } from './base/interceptors/response-transform.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtGuard } from './modules/auth/guards/jwt.guard';
+import { EmailModule } from './modules/email/email.module';
 import { LocationModule } from './modules/location/location.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
@@ -23,6 +24,7 @@ import { UsersModule } from './modules/users/users.module';
     LocationModule,
     ReviewsModule,
     TransactionsModule,
+    EmailModule,
   ],
   providers: [
     {

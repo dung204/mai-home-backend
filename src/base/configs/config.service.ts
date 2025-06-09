@@ -16,6 +16,8 @@ export class ConfigService {
   ACCESS_SECRET_KEY = process.env['ACCESS_SECRET_KEY'];
   REFRESH_SECRET_KEY = process.env['REFRESH_SECRET_KEY'];
 
+  OTP_SECRET_KEY = process.env['OTP_SECRET_KEY'] ?? '';
+
   POSTGRES = {
     type: 'postgres',
     host: process.env['DB_HOST'] ?? 'localhost',
@@ -52,6 +54,21 @@ export class ConfigService {
     clientId: process.env['PAYOS_CLIENT_ID'] ?? '',
     apiKey: process.env['PAYOS_API_KEY'] ?? '',
     checksumKey: process.env['PAYOS_CHECKSUM_KEY'] ?? '',
+  };
+
+  EMAIL = {
+    secure: false,
+    host: process.env['EMAIL_HOST'] ?? '',
+    port: parseInt(process.env['EMAIL_PORT'] ?? ''),
+    auth: {
+      user: process.env['EMAIL_AUTH_USER'] ?? '',
+      pass: process.env['EMAIL_AUTH_PASSWORD'] ?? '',
+    },
+  };
+
+  STRINGEE = {
+    sidKey: process.env['STRINGEE_SID_KEY'] ?? '',
+    secretKey: process.env['STRINGEE_SECRET_KEY'] ?? '',
   };
 }
 

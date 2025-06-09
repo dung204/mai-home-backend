@@ -1,15 +1,16 @@
-import { ConflictException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
+import { totp } from 'otplib';
 
 import { configs } from '@/base/configs';
 import { RedisService } from '@/base/database';
 import { BaseService } from '@/base/services';
-import { PasswordUtils } from '@/base/utils/password.utils';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/services/users.service';
 
-import { JwtPayloadDto, LoginDto, LoginSuccessDto, RegisterDto } from '../dtos/auth.dtos';
+import { GetOtpDto, JwtPayloadDto, LoginSuccessDto, VerifyOtpDto } from '../dtos/auth.dtos';
 import { Account } from '../entities/account.entity';
 import { AccountRepository } from '../repository/account.repository';
 
@@ -18,62 +19,57 @@ export class AuthService extends BaseService<Account> {
   private readonly ACCESS_EXPIRATION_TIME = 1800; // 30 minutes
   private readonly REFRESH_EXPIRATION_TIME = 604800; // 1 week
   private readonly BLACKLISTED = 'BLACKLISTED';
+  private readonly TOTP_EXPIRATION_TIME = 300; // 5 minutes
 
   constructor(
     protected readonly repository: AccountRepository,
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    private readonly emailService: MailerService,
   ) {
     const logger = new Logger(AuthService.name);
     super(repository, logger);
   }
 
-  async login(payload: LoginDto): Promise<LoginSuccessDto> {
-    const { email, phone, password } = payload;
+  async getOtp(payload: GetOtpDto) {
+    const { email } = payload;
+
+    const otp = totp.generate(configs.OTP_SECRET_KEY);
+
+    await this.redisService.set(`OTP_${email}`, otp, this.TOTP_EXPIRATION_TIME);
+
+    if (email) {
+      await this.emailService.sendMail({
+        to: email,
+        subject: `Mã đăng nhập vào Mai Home: ${otp}`,
+        template: 'otp',
+        context: {
+          otp,
+        },
+      });
+    }
+  }
+
+  async verifyOtp(payload: VerifyOtpDto) {
+    const { email, otp } = payload;
+
+    const storedOtp = await this.redisService.get(`OTP_${email}`, true);
+    if (!storedOtp || otp !== storedOtp) {
+      throw new UnauthorizedException();
+    }
+
     const account = await this.findOne({
-      where: [{ email }, { phone }],
+      where: { email },
+      withDeleted: true,
     });
 
     if (!account) {
-      throw new UnauthorizedException('Email/phone or password is incorrect.');
-    }
-
-    const isMatchPassword = PasswordUtils.isMatchPassword(password, account.password ?? '');
-
-    if (!isMatchPassword) {
-      throw new UnauthorizedException('Email/phone or password is incorrect.');
-    }
-
-    const user = await this.usersService.findOne({
-      where: { account },
-    });
-
-    return {
-      ...(await this.getTokens({ sub: user!.id })),
-      user: {
-        id: user!.id,
-        displayName: user!.displayName,
-      },
-    };
-  }
-
-  async register(payload: RegisterDto): Promise<LoginSuccessDto> {
-    const { email, phone, password } = payload;
-    const existedAccount = await this.findOne({
-      where: { email, phone },
-      withDeleted: true,
-    });
-    const hashedPassword = PasswordUtils.hashPassword(password);
-
-    if (!existedAccount) {
       const userId = randomUUID();
 
       const newAccount = await this.createOne(userId, {
         id: userId,
         email,
-        phone,
-        password: hashedPassword,
       });
 
       let userInfo: User | null = null;
@@ -100,14 +96,14 @@ export class AuthService extends BaseService<Account> {
           displayName: userInfo.displayName,
         },
       };
-    } else if (!existedAccount.deleteTimestamp) {
-      throw new ConflictException('Email/phone has already been registered.');
+    } else if (account.deleteTimestamp) {
+      throw new UnauthorizedException('Account has been disabled!');
     } else {
       let userInfo: User | null = null;
       try {
         userInfo = await this.usersService.findOne({
           where: {
-            account: existedAccount,
+            account,
           },
         });
       } catch (_err) {
@@ -115,18 +111,10 @@ export class AuthService extends BaseService<Account> {
       }
 
       if (!userInfo) {
-        userInfo = await this.usersService.createOne(existedAccount.id, {
-          account: existedAccount,
+        userInfo = await this.usersService.createOne(account.id, {
+          account,
         });
       }
-
-      await this.update(userInfo, {
-        ...existedAccount,
-        ...payload,
-        password: hashedPassword,
-        deleteTimestamp: null,
-        deleteUserId: null,
-      });
 
       return {
         ...(await this.getTokens({ sub: userInfo.id })),
