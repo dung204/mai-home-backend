@@ -66,9 +66,10 @@ export class ConfigService {
     },
   };
 
-  STRINGEE = {
-    sidKey: process.env['STRINGEE_SID_KEY'] ?? '',
-    secretKey: process.env['STRINGEE_SECRET_KEY'] ?? '',
+  CLOUDINARY = {
+    cloud_name: process.env['CLOUDINARY_CLOUD_NAME'] ?? '',
+    api_key: process.env['CLOUDINARY_API_KEY'] ?? '',
+    api_secret: process.env['CLOUDINARY_API_SECRET'] ?? '',
   };
 }
 
