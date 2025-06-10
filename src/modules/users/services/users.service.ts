@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { FindOneOptions } from 'typeorm';
+import { FindManyOptions, FindOneOptions } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
 
+import { UpdateUserDto } from '../dtos/user.dtos';
 import { User } from '../entities/user.entity';
 import { UsersRepository } from '../repositories/users.repository';
 
@@ -43,5 +45,32 @@ export class UsersService extends BaseService<User> {
 
   protected async onFindOneNotFound(_options: FindOneOptions<User>, _currentUser?: User) {
     throw new NotFoundException('User not found.');
+  }
+
+  protected async preUpdate(
+    currentUser: User,
+    updateDto: UpdateUserDto,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _oldRecords: User[],
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+    _options?: FindManyOptions<User>,
+    /**
+     * This arg is not used in the base class,
+     * but can be used in derived class
+     */
+  ): Promise<QueryDeepPartialEntity<User>> {
+    return {
+      ...updateDto,
+      account: {
+        phone: updateDto.phone,
+      },
+      updateUserId: currentUser.id,
+    };
   }
 }

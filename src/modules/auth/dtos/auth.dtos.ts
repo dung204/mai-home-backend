@@ -45,11 +45,30 @@ class LoginUserPayload {
   id!: string;
 
   @ApiProperty({
+    description: 'The email of the user',
+    example: SwaggerExamples.EMAIL,
+  })
+  email!: string | null;
+
+  @ApiProperty({
+    description: 'The phone of the user',
+    example: SwaggerExamples.PHONE,
+  })
+  phone!: string | null;
+
+  @ApiProperty({
     description: 'The full name of the user',
     example: SwaggerExamples.FULLNAME,
     nullable: true,
   })
   displayName!: string | null;
+
+  @ApiProperty({
+    description: 'The avatar URL of the user',
+    example: SwaggerExamples.URL,
+    nullable: true,
+  })
+  avatar!: string | null;
 }
 
 export class LoginSuccessDto {

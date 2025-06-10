@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, plainToInstance } from 'class-transformer';
-import { IsEmail, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsOptional, IsString, IsUrl } from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
 import { Role } from '@/modules/auth/enums/role.enum';
@@ -81,15 +81,6 @@ export class DeletedUserProfileDto extends UserProfileDto {
 }
 
 export class UpdateUserDto {
-  @ApiProperty({
-    description: 'The email of the user',
-    example: SwaggerExamples.EMAIL,
-    required: false,
-  })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
   @ApiProperty({
     description: 'The phone of the user',
     example: SwaggerExamples.PHONE,

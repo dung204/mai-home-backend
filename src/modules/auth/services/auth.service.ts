@@ -93,7 +93,10 @@ export class AuthService extends BaseService<Account> {
         ...(await this.getTokens({ sub: userInfo.id })),
         user: {
           id: userInfo.id,
+          email: userInfo.account.email,
+          phone: userInfo.account.phone,
           displayName: userInfo.displayName,
+          avatar: userInfo.avatar,
         },
       };
     } else if (account.deleteTimestamp) {
@@ -120,7 +123,10 @@ export class AuthService extends BaseService<Account> {
         ...(await this.getTokens({ sub: userInfo.id })),
         user: {
           id: userInfo.id,
+          email: userInfo.account.email,
+          phone: userInfo.account.phone,
           displayName: userInfo.displayName,
+          avatar: userInfo.avatar,
         },
       };
     }
@@ -147,7 +153,10 @@ export class AuthService extends BaseService<Account> {
       ...(await this.getTokens({ sub: userId })),
       user: {
         id: user!.id,
+        email: user!.account.email,
+        phone: user!.account.phone,
         displayName: user!.displayName,
+        avatar: user!.avatar,
       },
     };
   }
