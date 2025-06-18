@@ -1,4 +1,4 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, plainToInstance } from 'class-transformer';
 import {
   IsDecimal,
@@ -6,6 +6,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
+  IsUrl,
   MaxLength,
   MinLength,
   Validate,
@@ -182,6 +184,15 @@ export class PropertyQueryDto extends QueryDto {
   category?: PropertyCategory;
 
   @ApiProperty({
+    type: String,
+    enum: PropertyCategory,
+    enumName: 'PropertyCategory',
+    required: false,
+  })
+  @IsOptional()
+  owner?: string;
+
+  @ApiProperty({
     example: SwaggerExamples.CITY_ID,
     required: false,
   })
@@ -242,6 +253,14 @@ export class DeletedPropertyQueryDto extends PropertyQueryDto {
 
 export class CreatePropertyDto {
   @ApiProperty({
+    format: 'uuid',
+    example: SwaggerExamples.UUID,
+  })
+  @IsOptional()
+  @IsUUID(4)
+  id!: string;
+
+  @ApiProperty({
     format: 'textarea',
     example: SwaggerExamples.TITLE,
   })
@@ -265,22 +284,26 @@ export class CreatePropertyDto {
     enum: PropertyCategory,
     enumName: 'PropertyCategory',
   })
+  @IsNotEmpty()
   @IsEnum(PropertyCategory)
   category!: PropertyCategory;
 
   @ApiProperty({
     example: SwaggerExamples.CITY_ID,
   })
+  @IsNotEmpty()
   cityId!: string;
 
   @ApiProperty({
     example: SwaggerExamples.DISTRICT_ID,
   })
+  @IsNotEmpty()
   districtId!: string;
 
   @ApiProperty({
     example: SwaggerExamples.WARD_ID,
   })
+  @IsNotEmpty()
   wardId!: string;
 
   @ApiProperty({
@@ -292,6 +315,7 @@ export class CreatePropertyDto {
       sentenceUpperBound: 10,
     }),
   })
+  @IsNotEmpty()
   address!: string;
 
   @ApiProperty({
@@ -325,6 +349,24 @@ export class CreatePropertyDto {
   @IsDecimal()
   @Validate((value: string) => parseFloat(value) > 0)
   area!: string;
+
+  @ApiProperty({
+    example: [SwaggerExamples.URL],
+    required: false,
+  })
+  @IsOptional()
+  @IsUrl({}, { each: true })
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
+  images?: string[];
+
+  @ApiProperty({
+    example: [SwaggerExamples.URL],
+    required: false,
+  })
+  @IsOptional()
+  @IsUrl({}, { each: true })
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
+  videos?: string[];
 }
 
-export class UpdatePropertyDto extends PartialType(CreatePropertyDto) {}
+export class UpdatePropertyDto extends PartialType(OmitType(CreatePropertyDto, ['id'])) {}

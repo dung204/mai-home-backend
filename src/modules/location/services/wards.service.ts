@@ -37,7 +37,9 @@ export class WardsService extends BaseService<Ward> {
       preProcessedOptions.where = {
         ...preProcessedOptions.where,
         district: district!,
-        ...(name && { name: Raw((alias) => `LOWER("${alias}") LIKE '%:name%'`, { name }) }),
+        ...(name && {
+          name: Raw((alias) => `unaccent(${alias}) ILIKE unaccent('%' || :name || '%')`, { name }),
+        }),
       };
     }
 

@@ -18,6 +18,7 @@ services:
       - '5432:${DB_PORT}'
     volumes:
       - postgresql_data:/var/lib/postgresql/data
+      - ./init-unaccent.sql:/docker-entrypoint-initdb.d/init-unaccent.sql
     environment:
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}

@@ -11,41 +11,58 @@ import { DeleteMediaDto, GetMediaDto } from '@/modules/media/dtos';
 
 @Injectable()
 export class MediaService {
-  async uploadFile(file: Express.Multer.File, folder?: string) {
-    let transformation: TransformationOptions;
+  async uploadFile(files: Express.Multer.File[], folder?: string) {
+    const result = await Promise.allSettled(
+      files.map(async (file) => {
+        let transformation: TransformationOptions;
 
-    switch (file.mimetype.split('/')[0]) {
-      case 'image':
-        transformation = { quality: 'auto', fetch_format: 'webp' };
-        break;
-      case 'video':
-      case 'audio':
-        transformation = { quality: 'auto', fetch_format: 'webm' };
-        break;
-    }
+        switch (file.mimetype.split('/')[0]) {
+          case 'image':
+            transformation = { quality: 'auto', fetch_format: 'webp' };
+            break;
+          case 'video':
+          case 'audio':
+          default:
+            transformation = { quality: 'auto' };
+            break;
+        }
 
-    const [result, error] = await new Promise<
-      [UploadApiResponse | null, UploadApiErrorResponse | null]
-    >((resolve) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { transformation, resource_type: 'auto', folder },
-        (error?: UploadApiErrorResponse, result?: UploadApiResponse) => {
-          if (error) resolve([null, error]);
-          resolve([result!, null]);
-        },
-      );
+        const [uploadResult, error] = await new Promise<
+          [UploadApiResponse | null, UploadApiErrorResponse | null]
+        >((resolve) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            { transformation, resource_type: 'auto', folder },
+            (error?: UploadApiErrorResponse, result?: UploadApiResponse) => {
+              if (error) resolve([null, error]);
+              resolve([result!, null]);
+            },
+          );
 
-      Readable.from(file.buffer).pipe(uploadStream);
-    });
+          Readable.from(file.buffer).pipe(uploadStream);
+        });
 
-    if (error !== null) {
-      throw new HttpException(error.message, error.http_code);
-    }
+        if (error !== null) {
+          throw new HttpException(error.message, error.http_code);
+        }
+
+        return {
+          originalName: file.originalname,
+          name: uploadResult!.public_id,
+          url: uploadResult!.secure_url,
+        };
+      }),
+    );
+
+    const data = result.flatMap((file) => (file.status === 'fulfilled' ? file.value : []));
+    const successCount = result.filter((file) => file.status === 'fulfilled').length;
+    const failedCount = result.length - successCount;
 
     return {
-      originalName: file.originalname,
-      name: result!.public_id,
-      url: result!.secure_url,
+      data,
+      metadata: {
+        successCount,
+        failedCount,
+      },
     };
   }
 

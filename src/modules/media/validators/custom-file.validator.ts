@@ -30,7 +30,7 @@ export class CustomFileValidator extends FileValidator {
         return 'Image file size must not exceed 10MB';
       case 'audio':
       case 'video':
-        return 'Video/Audio file size must not exceed 100MB';
+        return 'Video/Audio file size must not exceed 50MB';
       default:
         return 'Unknown error';
     }

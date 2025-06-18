@@ -8,7 +8,7 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBody,
@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ApiSuccessResponse } from '@/base/decorators';
-import { CustomUploadedFile } from '@/modules/media/decorators';
+import { CustomUploadedFiles } from '@/modules/media/decorators';
 import { DeleteMediaDto, UploadQueryDto, UploadSuccessDto } from '@/modules/media/dtos';
 import { MediaService } from '@/modules/media/services';
 
@@ -36,11 +36,14 @@ export class MediaController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file'],
+      required: ['files'],
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
         },
       },
     },
@@ -55,13 +58,13 @@ export class MediaController {
     description:
       'Bad Request due to one of the following reasons:\n- File type is neither `image/*` nor `video/*` nor `audio/*`\n- Image file size is larger than 10MB\n- Audio/Video file size is larger than 100MB\n- File is missing',
   })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FilesInterceptor('files'))
   @Post('upload')
   uploadFile(
-    @CustomUploadedFile() file: Express.Multer.File,
+    @CustomUploadedFiles() files: Express.Multer.File[],
     @Query() uploadQueryDto: UploadQueryDto,
   ) {
-    return this.mediaService.uploadFile(file, uploadQueryDto.folder);
+    return this.mediaService.uploadFile(files, uploadQueryDto.folder);
   }
 
   @ApiOperation({

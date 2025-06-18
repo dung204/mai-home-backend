@@ -65,10 +65,13 @@ export class UsersService extends BaseService<User> {
      * but can be used in derived class
      */
   ): Promise<QueryDeepPartialEntity<User>> {
+    const { phone, ...dto } = updateDto;
+
     return {
-      ...updateDto,
+      ...dto,
       account: {
-        phone: updateDto.phone,
+        ...currentUser.account,
+        phone,
       },
       updateUserId: currentUser.id,
     };

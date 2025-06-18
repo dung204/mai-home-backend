@@ -33,6 +33,7 @@ export class PropertiesService extends BaseService<Property> {
       const {
         title,
         category,
+        owner: ownerId,
         city: cityId,
         district: districtId,
         ward: wardId,
@@ -44,6 +45,7 @@ export class PropertiesService extends BaseService<Property> {
 
       preProcessedOptions.where = {
         ...preProcessedOptions.where,
+        ...(ownerId && { ownerId }),
         ...(title && { title: Raw((alias) => `LOWER("${alias}") LIKE '%:title%'`, { title }) }),
         ...(category && { category }),
         ...(cityId && { cityId }),
@@ -71,6 +73,9 @@ export class PropertiesService extends BaseService<Property> {
         owner: {
           account: true,
         },
+        city: true,
+        district: true,
+        ward: true,
       },
     };
   }
@@ -87,6 +92,9 @@ export class PropertiesService extends BaseService<Property> {
         owner: {
           account: true,
         },
+        city: true,
+        district: true,
+        ward: true,
       },
     };
   }

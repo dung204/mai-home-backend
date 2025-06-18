@@ -18,6 +18,9 @@ export class Account extends BaseEntity {
   @Column('varchar', { length: 256, unique: true, nullable: true })
   email: string | null = null;
 
+  @Column('text', { nullable: true })
+  password: string | null = null;
+
   @Column('enum', { enum: Role, enumName: 'Role', default: Role.USER })
   role: Role = Role.USER;
 

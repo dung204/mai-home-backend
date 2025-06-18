@@ -1,5 +1,11 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import { totp } from 'otplib';
@@ -7,10 +13,19 @@ import { totp } from 'otplib';
 import { configs } from '@/base/configs';
 import { RedisService } from '@/base/database';
 import { BaseService } from '@/base/services';
+import { PasswordUtils } from '@/base/utils';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/services/users.service';
 
-import { GetOtpDto, JwtPayloadDto, LoginSuccessDto, VerifyOtpDto } from '../dtos/auth.dtos';
+import {
+  ChangePasswordDto,
+  GetOtpDto,
+  JwtPayloadDto,
+  LoginDto,
+  LoginSuccessDto,
+  RegisterDto,
+  VerifyOtpDto,
+} from '../dtos/auth.dtos';
 import { Account } from '../entities/account.entity';
 import { AccountRepository } from '../repository/account.repository';
 
@@ -32,44 +47,54 @@ export class AuthService extends BaseService<Account> {
     super(repository, logger);
   }
 
-  async getOtp(payload: GetOtpDto) {
-    const { email } = payload;
-
-    const otp = totp.generate(configs.OTP_SECRET_KEY);
-
-    await this.redisService.set(`OTP_${email}`, otp, this.TOTP_EXPIRATION_TIME);
-
-    if (email) {
-      await this.emailService.sendMail({
-        to: email,
-        subject: `Mã đăng nhập vào Mai Home: ${otp}`,
-        template: 'otp',
-        context: {
-          otp,
-        },
-      });
-    }
-  }
-
-  async verifyOtp(payload: VerifyOtpDto) {
-    const { email, otp } = payload;
-
-    const storedOtp = await this.redisService.get(`OTP_${email}`, true);
-    if (!storedOtp || otp !== storedOtp) {
-      throw new UnauthorizedException();
-    }
-
+  async login(payload: LoginDto): Promise<LoginSuccessDto> {
+    const { email, phone, password } = payload;
     const account = await this.findOne({
-      where: { email },
-      withDeleted: true,
+      where: [{ email }, { phone }],
     });
 
     if (!account) {
+      throw new UnauthorizedException('Email/phone or password is incorrect.');
+    }
+
+    const isMatchPassword = PasswordUtils.isMatchPassword(password, account.password ?? '');
+
+    if (!isMatchPassword) {
+      throw new UnauthorizedException('Email/phone or password is incorrect.');
+    }
+
+    const user = await this.usersService.findOne({
+      where: { account },
+    });
+
+    return {
+      ...(await this.getTokens({ sub: user!.id })),
+      user: {
+        id: user!.id,
+        email: user!.account.email,
+        phone: user!.account.phone,
+        displayName: user!.displayName,
+        avatar: user!.avatar,
+      },
+    };
+  }
+
+  async register(payload: RegisterDto): Promise<LoginSuccessDto> {
+    const { email, phone, password } = payload;
+    const existedAccount = await this.findOne({
+      where: { email, phone },
+      withDeleted: true,
+    });
+    const hashedPassword = PasswordUtils.hashPassword(password);
+
+    if (!existedAccount) {
       const userId = randomUUID();
 
       const newAccount = await this.createOne(userId, {
         id: userId,
         email,
+        phone,
+        password: hashedPassword,
       });
 
       let userInfo: User | null = null;
@@ -99,14 +124,14 @@ export class AuthService extends BaseService<Account> {
           avatar: userInfo.avatar,
         },
       };
-    } else if (account.deleteTimestamp) {
-      throw new UnauthorizedException('Account has been disabled!');
+    } else if (!existedAccount.deleteTimestamp) {
+      throw new ConflictException('Email/phone has already been registered.');
     } else {
       let userInfo: User | null = null;
       try {
         userInfo = await this.usersService.findOne({
           where: {
-            account,
+            account: existedAccount,
           },
         });
       } catch (_err) {
@@ -114,10 +139,18 @@ export class AuthService extends BaseService<Account> {
       }
 
       if (!userInfo) {
-        userInfo = await this.usersService.createOne(account.id, {
-          account,
+        userInfo = await this.usersService.createOne(existedAccount.id, {
+          account: existedAccount,
         });
       }
+
+      await this.update(userInfo, {
+        ...existedAccount,
+        ...payload,
+        password: hashedPassword,
+        deleteTimestamp: null,
+        deleteUserId: null,
+      });
 
       return {
         ...(await this.getTokens({ sub: userInfo.id })),
@@ -129,6 +162,54 @@ export class AuthService extends BaseService<Account> {
           avatar: userInfo.avatar,
         },
       };
+    }
+  }
+
+  async changePassword(currentUser: User, payload: ChangePasswordDto) {
+    const { oldPassword, newPassword } = payload;
+
+    if (currentUser.account.password !== null && !oldPassword) {
+      throw new BadRequestException('Old password is required for this account');
+    }
+
+    await this.update(
+      currentUser,
+      {
+        password: PasswordUtils.hashPassword(newPassword),
+      },
+      {
+        where: {
+          id: currentUser.id,
+        },
+      },
+    );
+  }
+
+  async getOtp(payload: GetOtpDto) {
+    const { email } = payload;
+
+    const otp = totp.generate(configs.OTP_SECRET_KEY);
+
+    await this.redisService.set(`OTP_${email}`, otp, this.TOTP_EXPIRATION_TIME);
+
+    if (email) {
+      await this.emailService.sendMail({
+        to: email,
+        subject: `Mã đăng nhập vào Mai Home: ${otp}`,
+        template: 'otp',
+        context: {
+          otp,
+        },
+      });
+    }
+  }
+
+  async verifyOtp(payload: VerifyOtpDto) {
+    const { email, otp } = payload;
+
+    const storedOtp = await this.redisService.get(`OTP_${email}`, true);
+    if (!storedOtp || otp !== storedOtp) {
+      throw new UnauthorizedException();
     }
   }
 

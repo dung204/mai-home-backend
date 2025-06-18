@@ -22,11 +22,11 @@ export class Property extends BaseEntity {
   @Column('text')
   description!: string;
 
-  @ManyToOne(() => User)
-  owner!: User;
-
   @Column('enum', { enum: PropertyCategory, enumName: 'PropertyCategory' })
   category!: PropertyCategory;
+
+  @Column('uuid')
+  ownerId!: string;
 
   @Column('varchar')
   cityId!: string;
@@ -57,6 +57,9 @@ export class Property extends BaseEntity {
 
   @Column('text', { array: true, default: [] })
   videos: string[] = [];
+
+  @ManyToOne(() => User)
+  owner!: User;
 
   @ManyToOne(() => City)
   city!: City;

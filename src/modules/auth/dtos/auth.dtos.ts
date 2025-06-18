@@ -1,7 +1,66 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsJWT, IsNotEmpty, Length } from 'class-validator';
+import {
+  IsEmail,
+  IsJWT,
+  IsMobilePhone,
+  IsNotEmpty,
+  IsOptional,
+  Length,
+  ValidateIf,
+} from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
+
+export class LoginDto {
+  @ApiProperty({
+    description: 'The email address of the user',
+    example: SwaggerExamples.EMAIL,
+    required: false,
+  })
+  @ValidateIf((obj) => !obj.phone)
+  @IsNotEmpty()
+  @IsEmail()
+  @Length(6, 256)
+  email?: string;
+
+  @ApiProperty({
+    description: 'The mobile phone of the user',
+    example: SwaggerExamples.PHONE,
+    required: false,
+  })
+  @ValidateIf((obj) => !obj.email)
+  @IsNotEmpty()
+  @IsMobilePhone('vi-VN')
+  @Length(6, 256)
+  phone?: string;
+
+  @ApiProperty({
+    description: 'The password of the user',
+    example: SwaggerExamples.PASSWORD,
+  })
+  @IsNotEmpty()
+  @Length(8, 100)
+  password!: string;
+}
+
+export class RegisterDto extends LoginDto {}
+
+export class ChangePasswordDto {
+  @ApiProperty({
+    description: 'The old password of the user (not required if the user does not have a password)',
+    example: SwaggerExamples.PASSWORD,
+    required: false,
+  })
+  @IsOptional()
+  oldPassword?: string;
+
+  @ApiProperty({
+    description: 'The new password of the user',
+    example: SwaggerExamples.PASSWORD,
+  })
+  @IsNotEmpty()
+  newPassword!: string;
+}
 
 export class GetOtpDto {
   @ApiProperty({
