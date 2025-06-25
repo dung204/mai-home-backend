@@ -114,13 +114,25 @@ export class PropertyResponseDto {
     example: SwaggerExamples.PRICE.toString(),
   })
   @Expose()
-  pricePerMonth!: string;
+  minPricePerMonth!: string;
+
+  @ApiProperty({
+    example: SwaggerExamples.PRICE.toString(),
+  })
+  @Expose()
+  maxPricePerMonth!: string;
 
   @ApiProperty({
     example: SwaggerExamples.AREA.toString(),
   })
   @Expose()
-  area!: string;
+  minArea!: string;
+
+  @ApiProperty({
+    example: SwaggerExamples.AREA.toString(),
+  })
+  @Expose()
+  maxArea!: string;
 
   @ApiProperty({
     example: [SwaggerExamples.URL],
@@ -339,7 +351,16 @@ export class CreatePropertyDto {
   })
   @IsDecimal()
   @Validate((value: string) => parseFloat(value) > 0)
-  pricePerMonth!: string;
+  minPricePerMonth!: string;
+
+  @ApiProperty({
+    type: Number,
+    format: 'currency',
+    example: SwaggerExamples.PRICE,
+  })
+  @IsDecimal()
+  @Validate((value: string) => parseFloat(value) > 0)
+  maxPricePerMonth!: string;
 
   @ApiProperty({
     type: Number,
@@ -348,7 +369,16 @@ export class CreatePropertyDto {
   })
   @IsDecimal()
   @Validate((value: string) => parseFloat(value) > 0)
-  area!: string;
+  minArea!: string;
+
+  @ApiProperty({
+    type: Number,
+    minimum: 0,
+    example: SwaggerExamples.AREA,
+  })
+  @IsDecimal()
+  @Validate((value: string) => parseFloat(value) > 0)
+  maxArea!: string;
 
   @ApiProperty({
     example: [SwaggerExamples.URL],

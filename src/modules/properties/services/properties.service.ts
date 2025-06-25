@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { And, DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual, Raw } from 'typeorm';
+import { DeepPartial, FindOneOptions, LessThanOrEqual, MoreThanOrEqual, Raw } from 'typeorm';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
 import { CitiesService } from '@/modules/location/services/cities.service';
@@ -51,19 +51,32 @@ export class PropertiesService extends BaseService<Property> {
         ...(cityId && { cityId }),
         ...(districtId && { districtId }),
         ...(wardId && { wardId }),
-        ...(minPricePerMonth && { pricePerMonth: MoreThanOrEqual(minPricePerMonth) }),
-        ...(maxPricePerMonth && { pricePerMonth: LessThanOrEqual(maxPricePerMonth) }),
+        ...(minPricePerMonth && {
+          minPricePerMonth: LessThanOrEqual(Number.MAX_VALUE.toString()),
+          maxPricePerMonth: MoreThanOrEqual(minPricePerMonth),
+        }),
+        ...(maxPricePerMonth && {
+          minPricePerMonth: LessThanOrEqual(maxPricePerMonth),
+          maxPricePerMonth: MoreThanOrEqual(Number.MAX_VALUE.toString()),
+        }),
         ...(minPricePerMonth &&
           maxPricePerMonth && {
-            pricePerMonth: And(
-              MoreThanOrEqual(minPricePerMonth),
-              LessThanOrEqual(maxPricePerMonth),
-            ),
+            minPricePerMonth: LessThanOrEqual(maxPricePerMonth),
+            maxPricePerMonth: MoreThanOrEqual(minPricePerMonth),
           }),
-        ...(minArea && { area: MoreThanOrEqual(minArea) }),
-        ...(maxArea && { area: LessThanOrEqual(maxArea) }),
+        ...(minArea && {
+          minArea: LessThanOrEqual(Number.MAX_VALUE.toString()),
+          maxArea: MoreThanOrEqual(minArea),
+        }),
+        ...(maxArea && {
+          minArea: LessThanOrEqual(maxArea),
+          maxArea: MoreThanOrEqual(Number.MAX_VALUE.toString()),
+        }),
         ...(minArea &&
-          maxArea && { area: And(MoreThanOrEqual(minArea), LessThanOrEqual(maxArea)) }),
+          maxArea && {
+            minArea: LessThanOrEqual(maxArea),
+            maxArea: MoreThanOrEqual(minArea),
+          }),
       };
     }
 
@@ -109,7 +122,18 @@ export class PropertiesService extends BaseService<Property> {
     currentUser: User,
   ): Promise<DeepPartial<Property>> {
     const preProcessedOptions = await super.preCreateOne(userId, createDto, currentUser);
-    const { cityId, districtId, wardId } = createDto;
+    const { cityId, districtId, wardId, minPricePerMonth, maxPricePerMonth, minArea, maxArea } =
+      createDto;
+
+    if (minPricePerMonth > maxPricePerMonth) {
+      throw new BadRequestException(
+        'minPricePerMonth must be smaller or equal to maxPricePerMonth',
+      );
+    }
+
+    if (minArea > maxArea) {
+      throw new BadRequestException('minArea must be smaller or equal to maxArea');
+    }
 
     const city = await this.citiesService.findOne({
       where: {

@@ -47,10 +47,16 @@ export class Property extends BaseEntity {
   longitude: string | null = null;
 
   @Column('decimal', { precision: 15, scale: 2 })
-  pricePerMonth!: string;
+  minPricePerMonth!: string;
+
+  @Column('decimal', { precision: 15, scale: 2 })
+  maxPricePerMonth!: string;
 
   @Column('decimal', { precision: 6, scale: 2 })
-  area!: string;
+  minArea!: string;
+
+  @Column('decimal', { precision: 6, scale: 2 })
+  maxArea!: string;
 
   @Column('text', { array: true, default: [] })
   images: string[] = [];
