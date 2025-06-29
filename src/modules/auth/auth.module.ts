@@ -1,3 +1,4 @@
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -19,6 +20,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.register({}),
     UsersModule,
     EmailModule,
+    HttpModule,
   ],
   controllers: [AuthController],
   providers: [AccountRepository, AuthService, JwtStrategy, JwtGuard],

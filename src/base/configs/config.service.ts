@@ -71,6 +71,13 @@ export class ConfigService {
     api_key: process.env['CLOUDINARY_API_KEY'] ?? '',
     api_secret: process.env['CLOUDINARY_API_SECRET'] ?? '',
   };
+
+  GOOGLE = {
+    client_id: process.env['GOOGLE_OAUTH_CLIENT_ID'] ?? '',
+    client_secret: process.env['GOOGLE_OAUTH_CLIENT_SECRET'] ?? '',
+    redirect_uri: process.env['GOOGLE_OAUTH_REDIRECT_URI'] ?? '',
+    grant_type: 'authorization_code',
+  };
 }
 
 export const configs = new ConfigService();

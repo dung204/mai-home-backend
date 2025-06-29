@@ -25,12 +25,14 @@ import { Public } from '../decorators/public.decorator';
 import {
   ChangePasswordDto,
   GetOtpDto,
+  GoogleRequestDto,
   LoginDto,
   LoginSuccessDto,
   RefreshTokenDto,
   RegisterDto,
   VerifyOtpDto,
 } from '../dtos/auth.dtos';
+import { OAuthAction } from '../enums/oauth-action.enum';
 import { AuthService } from '../services/auth.service';
 
 @Controller('auth')
@@ -154,5 +156,23 @@ export class AuthController {
     // @ts-expect-error authorization does exist in req.headers
     const accessToken: string = req.headers.authorization!.replaceAll('Bearer ', '');
     await this.authService.logout(req.user!, accessToken);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary: 'Handle Google authentication',
+  })
+  @ApiSuccessResponse({
+    status: HttpStatus.OK,
+    description: 'Successful authentication',
+    schema: LoginSuccessDto,
+    isArray: false,
+  })
+  @ApiConflictResponse({
+    description: `Due to one of the two reasons:\n- For \`${OAuthAction.AUTHENTICATE}\` action, a user that is not linked to Google has been found.\n- For \`${OAuthAction.LINK}\` action, a user that is already linked to Google has been found.`,
+  })
+  @Post('/google')
+  async handleGoogleAuth(@Body() googleRequest: GoogleRequestDto) {
+    return this.authService.handleGoogleAuth(googleRequest);
   }
 }

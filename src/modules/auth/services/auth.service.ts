@@ -1,9 +1,11 @@
 import { MailerService } from '@nestjs-modules/mailer';
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -20,6 +22,7 @@ import { UsersService } from '@/modules/users/services/users.service';
 import {
   ChangePasswordDto,
   GetOtpDto,
+  GoogleRequestDto,
   JwtPayloadDto,
   LoginDto,
   LoginSuccessDto,
@@ -27,6 +30,7 @@ import {
   VerifyOtpDto,
 } from '../dtos/auth.dtos';
 import { Account } from '../entities/account.entity';
+import { OAuthAction } from '../enums/oauth-action.enum';
 import { AccountRepository } from '../repository/account.repository';
 
 @Injectable()
@@ -42,6 +46,7 @@ export class AuthService extends BaseService<Account> {
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly emailService: MailerService,
+    private readonly httpService: HttpService,
   ) {
     const logger = new Logger(AuthService.name);
     super(repository, logger);
@@ -269,6 +274,123 @@ export class AuthService extends BaseService<Account> {
 
     await this.blacklistToken(accessToken);
     if (refreshToken) await this.blacklistToken(refreshToken);
+  }
+
+  async handleGoogleAuth({ code, action }: GoogleRequestDto) {
+    const accessToken = await this.getGoogleAccessToken(code);
+    const googleUserInfo = await this.getGoogleUserInfo(accessToken);
+    const existingAccount = await this.findOne({
+      where: {
+        email: googleUserInfo.email,
+      },
+    });
+
+    switch (action) {
+      case OAuthAction.AUTHENTICATE: {
+        if (!existingAccount) {
+          const userId = randomUUID();
+          const newAccount = await this.createOne(userId, {
+            id: userId,
+            email: googleUserInfo.email,
+            googleId: googleUserInfo.id,
+          });
+
+          const userInfo = await this.usersService.createOne(newAccount.id, {
+            account: newAccount,
+            displayName: googleUserInfo.name,
+          });
+
+          return {
+            ...(await this.getTokens({ sub: userInfo.id })),
+            user: {
+              id: userInfo.id,
+              email: userInfo.account.email,
+              phone: userInfo.account.phone,
+              displayName: userInfo.displayName,
+              avatar: userInfo.avatar,
+            },
+          };
+        }
+
+        if (existingAccount.googleId !== googleUserInfo.id) {
+          throw new ConflictException('Found a user account that is not linked to Google.');
+        }
+
+        const user = await this.usersService.findOne({
+          where: { account: existingAccount },
+        });
+
+        return {
+          ...(await this.getTokens({ sub: user!.id })),
+          user: {
+            id: user!.id,
+            email: user!.account.email,
+            phone: user!.account.phone,
+            displayName: user!.displayName,
+            avatar: user!.avatar,
+          },
+        };
+      }
+
+      case OAuthAction.LINK: {
+        if (!existingAccount) throw new NotFoundException('User not found.');
+
+        if (existingAccount.googleId) {
+          throw new ConflictException(
+            'Can not link because a user already linked to Google has been found.',
+          );
+        }
+
+        const user = await this.usersService.findOne({
+          where: { account: existingAccount },
+        });
+
+        await this.update(
+          user!,
+          { googleId: googleUserInfo.id },
+          {
+            where: {
+              id: existingAccount.id,
+            },
+          },
+        );
+
+        return {
+          ...(await this.getTokens({ sub: user!.id })),
+          user: {
+            id: user!.id,
+            email: user!.account.email,
+            phone: user!.account.phone,
+            displayName: user!.displayName,
+            avatar: user!.avatar,
+          },
+        };
+      }
+    }
+  }
+
+  private async getGoogleAccessToken(code: string): Promise<string> {
+    const {
+      data: { access_token },
+    } = await this.httpService.axiosRef.post('https://accounts.google.com/o/oauth2/token', {
+      code,
+      ...configs.GOOGLE,
+    });
+
+    return access_token;
+  }
+
+  private async getGoogleUserInfo(accessToken: string) {
+    const { data } = await this.httpService.axiosRef.get(
+      'https://www.googleapis.com/oauth2/v1/userinfo',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    return data;
   }
 
   async blacklistToken(token: string) {
