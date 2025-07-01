@@ -122,7 +122,7 @@ export class MinioStorageService {
       );
 
       return url.replace(
-        `http://${configs.MINIO.endPoint}:${configs.MINIO.port}`,
+        `http://${configs.MINIO.endPoint}:${configs.MINIO.port}/${configs.MINIO.bucket}`,
         configs.MINIO.publicEndpoint,
       );
     } catch (error: any) {
