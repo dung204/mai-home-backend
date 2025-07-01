@@ -1,55 +1,34 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  TransformationOptions,
-  UploadApiErrorResponse,
-  UploadApiResponse,
-  v2 as cloudinary,
-} from 'cloudinary';
-import { Readable } from 'stream';
+import { HttpService } from '@nestjs/axios';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import sharp from 'sharp';
 
-import { DeleteMediaDto, GetMediaDto } from '@/modules/media/dtos';
+import { MinioStorageService } from '@/modules/minio-storage/minio-storage.service';
 
 @Injectable()
 export class MediaService {
+  constructor(
+    private readonly minioStorageService: MinioStorageService,
+    private readonly httpService: HttpService,
+  ) {}
+
   async uploadFile(files: Express.Multer.File[], folder?: string) {
     const result = await Promise.allSettled(
       files.map(async (file) => {
-        let transformation: TransformationOptions;
-
         switch (file.mimetype.split('/')[0]) {
           case 'image':
-            transformation = { quality: 'auto', fetch_format: 'webp' };
+            if (!file.mimetype.includes('webp')) {
+              file.buffer = await sharp(file.buffer).webp().toBuffer();
+              file.mimetype = 'image/webp';
+              file.originalname = file.originalname.replaceAll(/\.(.*)/g, '.webp');
+            }
             break;
           case 'video':
           case 'audio':
           default:
-            transformation = { quality: 'auto' };
             break;
         }
 
-        const [uploadResult, error] = await new Promise<
-          [UploadApiResponse | null, UploadApiErrorResponse | null]
-        >((resolve) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            { transformation, resource_type: 'auto', folder },
-            (error?: UploadApiErrorResponse, result?: UploadApiResponse) => {
-              if (error) resolve([null, error]);
-              resolve([result!, null]);
-            },
-          );
-
-          Readable.from(file.buffer).pipe(uploadStream);
-        });
-
-        if (error !== null) {
-          throw new HttpException(error.message, error.http_code);
-        }
-
-        return {
-          originalName: file.originalname,
-          name: uploadResult!.public_id,
-          url: uploadResult!.secure_url,
-        };
+        return this.minioStorageService.uploadFile(file, true, folder);
       }),
     );
 
@@ -66,49 +45,41 @@ export class MediaService {
     };
   }
 
-  async uploadFromUrl(url: string, folder?: string) {
-    try {
-      const result = await cloudinary.uploader.upload(url, {
-        folder,
-        resource_type: 'auto',
-        transformation: {
-          quality: 'auto',
-          fetch_format: 'webp',
-          width: 300,
-          height: 300,
-        },
-      });
-      return result;
-    } catch (error: any) {
-      throw new HttpException(error.message, error.http_code);
-    }
-  }
-
-  async deleteFile({ name, folder }: DeleteMediaDto) {
-    const fileName = !folder ? name : `${folder}/${name}`;
-
-    const result = await cloudinary.api.delete_resources([!folder ? name : `${folder}/${name}`], {
-      type: 'upload',
+  async uploadFromUrl(url: string, fixedTime?: boolean, folder?: string) {
+    const res = await this.httpService.axiosRef.get<Buffer>(url, {
+      responseType: 'arraybuffer',
     });
 
-    if (result.deleted_counts[fileName].original === 0) {
-      throw new NotFoundException('Media is not found.');
+    let buffer = res.data;
+    let contentType: string | undefined = res.headers['content-type'];
+    const contentLength: number = res.headers['content-length'];
+    let fileName: string = '';
+
+    switch (contentType?.split('/')[0]) {
+      case 'image':
+        if (contentType.split('/')[1] !== 'webp') {
+          buffer = await sharp(buffer).webp().toBuffer();
+          contentType = 'image/webp';
+          fileName = 'image.webp';
+        }
+        break;
+      case 'video':
+        fileName = `video.${contentType.split('/')[1]}`;
+        break;
+      case 'audio':
+        fileName = `audio.${contentType.split('/')[1]}`;
+        break;
+      default:
+        throw new BadRequestException('The Content-Type of URL is not supported.');
     }
-  }
 
-  /**
-   * Checks whether file has already existed in Cloudinary
-   */
-  async checkFileExists({ name, folder }: GetMediaDto) {
-    const fileName = !folder ? name : `${folder}/${name}`;
-
-    try {
-      await cloudinary.api.resource(fileName);
-    } catch (errRes: any) {
-      const { error } = errRes;
-      throw new HttpException(error.message, error.http_code);
-    }
-
-    return true;
+    return this.minioStorageService.uploadFromBuffer(
+      buffer,
+      fileName,
+      contentLength,
+      contentType,
+      fixedTime,
+      folder,
+    );
   }
 }

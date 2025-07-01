@@ -1,19 +1,15 @@
+import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
 
-import { configs } from '@/base/configs';
 import { MediaController } from '@/modules/media/controllers';
 import { MediaService } from '@/modules/media/services';
 
+import { MinioStorageModule } from '../minio-storage/minio-storage.module';
+
 @Module({
+  imports: [MinioStorageModule, HttpModule],
   controllers: [MediaController],
-  providers: [
-    {
-      provide: 'CLOUDINARY',
-      useFactory: () => cloudinary.config(configs.CLOUDINARY),
-    },
-    MediaService,
-  ],
+  providers: [MediaService],
   exports: [MediaService],
 })
 export class MediaModule {}

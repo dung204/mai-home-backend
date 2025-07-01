@@ -4,6 +4,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   UseInterceptors,
@@ -20,12 +21,16 @@ import {
 
 import { ApiSuccessResponse } from '@/base/decorators';
 import { CustomUploadedFiles } from '@/modules/media/decorators';
-import { DeleteMediaDto, UploadQueryDto, UploadSuccessDto } from '@/modules/media/dtos';
+import { UploadFromUrlDto, UploadQueryDto, UploadSuccessDto } from '@/modules/media/dtos';
 import { MediaService } from '@/modules/media/services';
+import { MinioStorageService } from '@/modules/minio-storage/minio-storage.service';
 
 @Controller('media')
 export class MediaController {
-  constructor(private readonly mediaService: MediaService) {}
+  constructor(
+    private readonly mediaService: MediaService,
+    private readonly minioStorageService: MinioStorageService,
+  ) {}
 
   @ApiOperation({
     summary: 'Upload media files to Cloudinary',
@@ -68,17 +73,31 @@ export class MediaController {
   }
 
   @ApiOperation({
-    summary: 'Delete media files from Cloudinary',
+    summary: 'Upload media files from URL',
+    description:
+      'By default, the uploaded images are in `webp` format, and uploaded videos are in `webm` format. However, they can be retrieved with different file format using Cloudinary API.',
+  })
+  @Post('/upload/url')
+  async uploadFileFromUrl(@Body() uploadFromUrlDto: UploadFromUrlDto) {
+    return this.mediaService.uploadFromUrl(
+      uploadFromUrlDto.url,
+      uploadFromUrlDto.fixed,
+      uploadFromUrlDto.folder,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Delete media files',
   })
   @ApiNoContentResponse({
-    description: 'Media is deleted from Cloudinary successfully',
+    description: 'Media is deleted successfully',
   })
   @ApiNotFoundResponse({
     description: 'Media is not found',
   })
-  @Delete('delete')
+  @Delete('delete/:fileName')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteFile(@Body() deleteMediaDto: DeleteMediaDto) {
-    return this.mediaService.deleteFile(deleteMediaDto);
+  deleteFile(@Param('fileName') fileName: string) {
+    return this.minioStorageService.deleteFile(fileName);
   }
 }

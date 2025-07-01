@@ -71,13 +71,16 @@ export class MinioStorageService {
   async uploadFile(
     file: Express.Multer.File,
     fixedTime?: boolean,
+    folder?: string,
   ): Promise<{ url: string | null; fileName: string }> {
     const timestamp = new Date().toISOString();
     const uniqueId = randomUUID();
 
     const originalName = this.sanitizeFileName(file.originalname);
 
-    const fileName = `${timestamp}-${uniqueId}-${originalName}`;
+    const fileName = folder
+      ? `${folder}/${timestamp}-${uniqueId}-${originalName}`
+      : `${timestamp}-${uniqueId}-${originalName}`;
 
     await this.minioClient.putObject(configs.MINIO.bucket, fileName, file.buffer, file.size, {
       'Content-Type': file.mimetype,
@@ -85,6 +88,31 @@ export class MinioStorageService {
 
     const url = await this.getFileUrl(fileName, fixedTime);
     return { url, fileName };
+  }
+
+  async uploadFromBuffer(
+    buffer: Buffer,
+    fileName: string,
+    size: number,
+    mimeType: string,
+    fixedTime?: boolean,
+    folder?: string,
+  ) {
+    const timestamp = new Date().toISOString();
+    const uniqueId = randomUUID();
+
+    const originalName = this.sanitizeFileName(fileName);
+
+    const savedFileName = folder
+      ? `${folder}/${timestamp}-${uniqueId}-${originalName}`
+      : `${timestamp}-${uniqueId}-${originalName}`;
+
+    await this.minioClient.putObject(configs.MINIO.bucket, savedFileName, buffer, size, {
+      'Content-Type': mimeType,
+    });
+
+    const url = await this.getFileUrl(savedFileName, fixedTime);
+    return { url, fileName: savedFileName };
   }
 
   /**
@@ -138,12 +166,8 @@ export class MinioStorageService {
   async deleteFile(fileName: string): Promise<void> {
     if (!fileName) return;
 
-    try {
-      await this.minioClient.removeObject(configs.MINIO.bucket, fileName);
-      this.logger.log(`File ${fileName} deleted successfully`);
-    } catch (error: any) {
-      this.logger.error(`Failed to delete file ${fileName}: ${error.message}`);
-    }
+    await this.minioClient.removeObject(configs.MINIO.bucket, fileName);
+    this.logger.log(`File ${fileName} deleted successfully`);
   }
 
   /**

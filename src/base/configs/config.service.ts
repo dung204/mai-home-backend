@@ -40,16 +40,6 @@ export class ConfigService {
     password: process.env['REDIS_PASSWORD'] ?? '',
   };
 
-  MOMO = {
-    partnerCode: process.env['MOMO_PARTNER_CODE'] ?? '',
-    accessKey: process.env['MOMO_ACCESS_KEY'] ?? '',
-    secretKey: process.env['MOMO_SECRET_KEY'] ?? '',
-    ipnUrl: process.env['MOMO_IPN_URL'] ?? '',
-    orderExpireTime: process.env['MOMO_EXPIRE_TIME_MINUTES'] ?? '',
-    requestType: 'captureWallet',
-    lang: 'en',
-  };
-
   PAYOS = {
     clientId: process.env['PAYOS_CLIENT_ID'] ?? '',
     apiKey: process.env['PAYOS_API_KEY'] ?? '',
@@ -64,12 +54,6 @@ export class ConfigService {
       user: process.env['EMAIL_AUTH_USER'] ?? '',
       pass: process.env['EMAIL_AUTH_PASSWORD'] ?? '',
     },
-  };
-
-  CLOUDINARY = {
-    cloud_name: process.env['CLOUDINARY_CLOUD_NAME'] ?? '',
-    api_key: process.env['CLOUDINARY_API_KEY'] ?? '',
-    api_secret: process.env['CLOUDINARY_API_SECRET'] ?? '',
   };
 
   GOOGLE = {
