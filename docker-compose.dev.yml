@@ -1,29 +1,9 @@
 services:
-  api:
-    container_name: api
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    restart: always
-    build: .
-    ports:
-      - '${APP_PORT:-4000}:${APP_PORT:-4000}'
-    networks:
-      - network
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:${APP_PORT:-4000}/api/v1/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
   postgres:
     container_name: postgres
     image: postgres:16-alpine
+    env_file:
+      - .env.local
     ports:
       - '${DB_PORT:-5432}:5432'
     volumes:
@@ -48,6 +28,8 @@ services:
     container_name: redis
     image: redis:7.0-alpine
     command: ['redis-server', '--requirepass', '${REDIS_PASSWORD}', '--appendonly', 'yes']
+    env_file:
+      - .env.local
     ports:
       - '${REDIS_PORT:-6379}:6379'
     volumes:
@@ -64,17 +46,17 @@ services:
   minio:
     container_name: minio
     image: minio/minio:latest
+    env_file:
+      - .env.local
     ports:
       - '${MINIO_PORT:-9000}:9000'
       - '${MINIO_CONSOLE_PORT:-9001}:9001'
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
-
     volumes:
       - minio_data:/data
     command: server --console-address ":${MINIO_CONSOLE_PORT:-9001}" /data
-    restart: unless-stopped
     networks:
       - network
     healthcheck:
@@ -86,6 +68,8 @@ services:
   createbuckets:
     container_name: createbuckets
     image: minio/mc
+    env_file:
+      - .env.local
     depends_on:
       - minio
     entrypoint: >
@@ -98,20 +82,6 @@ services:
       "
     networks:
       - network
-
-  nginx:
-    container_name: nginx
-    image: nginx:1.25-alpine
-    ports:
-      - '5000:5000'
-    volumes:
-      - ./nginx:/etc/nginx/conf.d
-      - ./cert:/etc/certs
-    depends_on:
-      - api
-    networks:
-      - network
-    restart: unless-stopped
 
 networks:
   network:

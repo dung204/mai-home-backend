@@ -2,7 +2,6 @@ import { HttpService } from '@nestjs/axios';
 import { HttpException, Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AxiosError } from 'axios';
-import * as fs from 'fs';
 import { StorageDriver, initializeTransactionalContext } from 'typeorm-transactional';
 
 import { configSwagger, configs } from '@/base/configs';
@@ -14,14 +13,7 @@ async function bootstrap() {
   initializeTransactionalContext({ storageDriver: StorageDriver.AUTO });
 
   const logger = new Logger(bootstrap.name);
-  const app = await NestFactory.create(AppModule, {
-    ...(process.env['USE_HTTPS'] === 'true' && {
-      httpsOptions: {
-        key: fs.readFileSync('./cert/key.pem'),
-        cert: fs.readFileSync('./cert/cert.pem'),
-      },
-    }),
-  });
+  const app = await NestFactory.create(AppModule);
   const httpService = new HttpService();
 
   // URL prefix: /api/v1

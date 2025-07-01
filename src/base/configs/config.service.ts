@@ -78,6 +78,22 @@ export class ConfigService {
     redirect_uri: process.env['GOOGLE_OAUTH_REDIRECT_URI'] ?? '',
     grant_type: 'authorization_code',
   };
+
+  MINIO = {
+    endPoint: process.env['MINIO_ENDPOINT'] || 'localhost',
+    port: parseInt(process.env['MINIO_PORT'] || '9000'),
+    useSSL: false,
+    accessKey: process.env['MINIO_ACCESS_KEY'] || 'minioadmin',
+    secretKey: process.env['MINIO_SECRET_KEY'] || 'minioadmin',
+    bucket: process.env['MINIO_BUCKET'] || 'mely-blog',
+    region: process.env['MINIO_REGION'] || 'us-east-1',
+    publicEndpoint:
+      process.env['MINIO_PUBLIC_ENDPOINT'] || process.env['MINIO_ENDPOINT'] || 'localhost:9000',
+    expiryInSeconds: parseInt(process.env['MINIO_EXPIRY_SECONDS'] || (10 * 60).toString()), // Default 10 minutes
+    fixedExpiryInSeconds: parseInt(
+      process.env['MINIO_FIXED_EXPIRY_SECONDS'] || (24 * 60 * 60).toString(),
+    ), // Default 24 hours
+  };
 }
 
 export const configs = new ConfigService();
