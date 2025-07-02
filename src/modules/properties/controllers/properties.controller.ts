@@ -173,4 +173,16 @@ export class PropertiesController {
 
     return PropertyResponseDto.fromProperty(properties[0]);
   }
+
+  @Public()
+  @Get('/convert/minio/images')
+  covertImages() {
+    return this.propertiesService.convertImages();
+  }
+
+  @Public()
+  @Get('/convert/minio/videos')
+  covertVideos() {
+    return this.propertiesService.convertVideos();
+  }
 }

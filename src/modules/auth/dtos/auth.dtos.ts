@@ -56,7 +56,7 @@ export class ChangePasswordDto {
     required: false,
   })
   @IsOptional()
-  oldPassword?: string;
+  password?: string;
 
   @ApiProperty({
     description: 'The new password of the user',
@@ -132,6 +132,13 @@ class LoginUserPayload {
     nullable: true,
   })
   avatar!: string | null;
+
+  @ApiProperty({
+    description: 'The Google ID of the user',
+    example: SwaggerExamples.URL,
+    nullable: true,
+  })
+  googleId!: string | null;
 }
 
 export class LoginSuccessDto {

@@ -1,8 +1,16 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  forwardRef,
+} from '@nestjs/common';
 import { FindManyOptions, FindOneOptions } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
+import { AuthService } from '@/modules/auth/services/auth.service';
 
 import { UpdateUserDto } from '../dtos/user.dtos';
 import { User } from '../entities/user.entity';
@@ -10,7 +18,10 @@ import { UsersRepository } from '../repositories/users.repository';
 
 @Injectable()
 export class UsersService extends BaseService<User> {
-  constructor(protected readonly repository: UsersRepository) {
+  constructor(
+    protected readonly repository: UsersRepository,
+    @Inject(forwardRef(() => AuthService)) private readonly authService: AuthService,
+  ) {
     const logger = new Logger(UsersService.name);
     super(repository, logger);
   }
@@ -65,13 +76,45 @@ export class UsersService extends BaseService<User> {
      * but can be used in derived class
      */
   ): Promise<QueryDeepPartialEntity<User>> {
-    const { phone, ...dto } = updateDto;
+    const { phone, email, ...dto } = updateDto;
+
+    const [userWithExistedPhone, userWithExistedEmail] = (
+      await Promise.allSettled([
+        this.authService.findOne({
+          where: {
+            phone,
+          },
+          withDeleted: true,
+        }),
+        this.authService.findOne({
+          where: {
+            email,
+          },
+          withDeleted: true,
+        }),
+      ])
+    ).map((result) => (result.status === 'fulfilled' ? result.value : null));
+
+    if (userWithExistedPhone) {
+      throw new ConflictException({
+        message: `Số điện thoại đã tồn tại. Vui lòng chọn số điện thoại khác`,
+        field: 'phone',
+      });
+    }
+
+    if (userWithExistedEmail) {
+      throw new ConflictException({
+        message: `Email đã tồn tại. Vui lòng chọn email khác`,
+        field: 'email',
+      });
+    }
 
     return {
       ...dto,
       account: {
         ...currentUser.account,
         phone,
+        email,
       },
       updateUserId: currentUser.id,
     };

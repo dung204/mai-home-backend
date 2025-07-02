@@ -7,7 +7,6 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  IsUrl,
   MaxLength,
   MinLength,
   Validate,
@@ -385,7 +384,7 @@ export class CreatePropertyDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl({}, { each: true })
+  @IsString({ each: true })
   @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
   images?: string[];
 
@@ -394,7 +393,7 @@ export class CreatePropertyDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl({}, { each: true })
+  @IsString({ each: true })
   @Transform(({ value }) => (typeof value === 'string' ? value.split(',') : value))
   videos?: string[];
 }

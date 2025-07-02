@@ -5,6 +5,7 @@ import { BaseService, CustomFindManyOptions } from '@/base/services';
 import { CitiesService } from '@/modules/location/services/cities.service';
 import { DistrictsService } from '@/modules/location/services/districts.service';
 import { WardsService } from '@/modules/location/services/wards.service';
+import { MediaService } from '@/modules/media/services';
 import { User } from '@/modules/users/entities/user.entity';
 
 import { CreatePropertyDto, PropertyQueryDto } from '../dtos/properties.dtos';
@@ -18,6 +19,7 @@ export class PropertiesService extends BaseService<Property> {
     private readonly citiesService: CitiesService,
     private readonly districtsService: DistrictsService,
     private readonly wardsService: WardsService,
+    private readonly mediaService: MediaService,
   ) {
     const logger = new Logger(PropertiesService.name);
     super(repository, logger);
@@ -168,5 +170,69 @@ export class PropertiesService extends BaseService<Property> {
       district: district!,
       ward: ward!,
     };
+  }
+
+  async convertImages() {
+    const properties = await this.repository.find({
+      withDeleted: true,
+    });
+
+    const imageUploadResult = await Promise.allSettled(
+      properties.flatMap((property) =>
+        property.images.map((image) =>
+          this.mediaService.uploadFromUrl(image, true, `properties/${property.id}/images`),
+        ),
+      ),
+    );
+
+    const group = Object.groupBy(
+      imageUploadResult
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value.fileName),
+      (result) => result.split('/')[1],
+    );
+
+    for (const [propertyId, images] of Object.entries(group)) {
+      await this.repository.update(
+        {
+          id: propertyId,
+        },
+        {
+          images,
+        },
+      );
+    }
+  }
+
+  async convertVideos() {
+    const properties = await this.repository.find({
+      withDeleted: true,
+    });
+
+    const videoUploadResult = await Promise.allSettled(
+      properties.flatMap((property) =>
+        property.videos.map((video) =>
+          this.mediaService.uploadFromUrl(video, true, `properties/${property.id}/videos`),
+        ),
+      ),
+    );
+
+    const group = Object.groupBy(
+      videoUploadResult
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value.fileName),
+      (result) => result.split('/')[1],
+    );
+
+    for (const [propertyId, videos] of Object.entries(group)) {
+      await this.repository.update(
+        {
+          id: propertyId,
+        },
+        {
+          videos,
+        },
+      );
+    }
   }
 }

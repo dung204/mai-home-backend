@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Transform, plainToInstance } from 'class-transformer';
-import { IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 import { SwaggerExamples } from '@/base/constants';
 import { Role } from '@/modules/auth/enums/role.enum';
@@ -89,6 +89,13 @@ export class UpdateUserDto {
   phone?: string;
 
   @ApiProperty({
+    description: 'The email of the user',
+    example: SwaggerExamples.EMAIL,
+    required: false,
+  })
+  email?: string;
+
+  @ApiProperty({
     description: 'The full name of the user',
     example: SwaggerExamples.FULLNAME,
     required: false,
@@ -103,6 +110,6 @@ export class UpdateUserDto {
     required: false,
   })
   @IsOptional()
-  @IsUrl()
+  @IsString()
   avatar?: string;
 }

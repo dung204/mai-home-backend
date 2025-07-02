@@ -89,7 +89,6 @@ export class AuthController {
     return this.authService.getOtp(getOtpDto);
   }
 
-  @Public()
   @ApiOperation({
     summary: 'Change password of the current user',
   })

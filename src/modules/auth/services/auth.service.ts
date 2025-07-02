@@ -3,10 +3,12 @@ import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
@@ -44,7 +46,7 @@ export class AuthService extends BaseService<Account> {
     protected readonly repository: AccountRepository,
     private readonly redisService: RedisService,
     private readonly jwtService: JwtService,
-    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => UsersService)) private readonly usersService: UsersService,
     private readonly emailService: MailerService,
     private readonly httpService: HttpService,
   ) {
@@ -70,6 +72,9 @@ export class AuthService extends BaseService<Account> {
 
     const user = await this.usersService.findOne({
       where: { account },
+      relations: {
+        account: true,
+      },
     });
 
     return {
@@ -80,6 +85,7 @@ export class AuthService extends BaseService<Account> {
         phone: user!.account.phone,
         displayName: user!.displayName,
         avatar: user!.avatar,
+        googleId: user!.account.googleId,
       },
     };
   }
@@ -127,6 +133,7 @@ export class AuthService extends BaseService<Account> {
           phone: userInfo.account.phone,
           displayName: userInfo.displayName,
           avatar: userInfo.avatar,
+          googleId: null,
         },
       };
     } else if (!existedAccount.deleteTimestamp) {
@@ -165,16 +172,29 @@ export class AuthService extends BaseService<Account> {
           phone: userInfo.account.phone,
           displayName: userInfo.displayName,
           avatar: userInfo.avatar,
+          googleId: null,
         },
       };
     }
   }
 
   async changePassword(currentUser: User, payload: ChangePasswordDto) {
-    const { oldPassword, newPassword } = payload;
+    const { password, newPassword } = payload;
 
-    if (currentUser.account.password !== null && !oldPassword) {
-      throw new BadRequestException('Old password is required for this account');
+    if (currentUser.account.password !== null) {
+      if (!password) {
+        throw new BadRequestException({
+          message: 'Tài khoản đã thiết lập mật khẩu trước đó. Vui lòng nhập mật khẩu hiện tại.',
+          field: 'password',
+        });
+      }
+
+      if (!PasswordUtils.isMatchPassword(password, currentUser.account.password)) {
+        throw new BadRequestException({
+          message: 'Mật khẩu hiện tại không chính xác',
+          field: 'password',
+        });
+      }
     }
 
     await this.update(
@@ -184,7 +204,7 @@ export class AuthService extends BaseService<Account> {
       },
       {
         where: {
-          id: currentUser.id,
+          id: currentUser.account.id,
         },
       },
     );
@@ -231,6 +251,9 @@ export class AuthService extends BaseService<Account> {
       where: {
         id: userId,
       },
+      relations: {
+        account: true,
+      },
     });
 
     await this.blacklistToken(refreshToken);
@@ -243,6 +266,7 @@ export class AuthService extends BaseService<Account> {
         phone: user!.account.phone,
         displayName: user!.displayName,
         avatar: user!.avatar,
+        googleId: user!.account.googleId,
       },
     };
   }

@@ -60,8 +60,8 @@ export class MediaService {
         if (contentType.split('/')[1] !== 'webp') {
           buffer = await sharp(buffer).webp().toBuffer();
           contentType = 'image/webp';
-          fileName = 'image.webp';
         }
+        fileName = 'image.webp';
         break;
       case 'video':
         fileName = `video.${contentType.split('/')[1]}`;
