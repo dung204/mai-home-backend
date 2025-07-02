@@ -45,7 +45,14 @@ export class UserProfileDto {
     example: SwaggerExamples.FULLNAME,
   })
   @Expose()
-  displayName!: string;
+  displayName!: string | null;
+
+  @ApiProperty({
+    description: 'The avatar name of the user',
+    example: SwaggerExamples.URL,
+  })
+  @Expose()
+  avatar!: string | null;
 
   @ApiProperty({
     description: 'The timestamp indicating when the user is created',

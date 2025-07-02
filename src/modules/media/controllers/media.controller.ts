@@ -4,7 +4,6 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-  Param,
   Post,
   Query,
   UseInterceptors,
@@ -95,9 +94,20 @@ export class MediaController {
   @ApiNotFoundResponse({
     description: 'Media is not found',
   })
-  @Delete('delete/:fileName')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['fileName'],
+      properties: {
+        fileName: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Delete('delete')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteFile(@Param('fileName') fileName: string) {
+  deleteFile(@Body('fileName') fileName: string) {
     return this.minioStorageService.deleteFile(fileName);
   }
 }
