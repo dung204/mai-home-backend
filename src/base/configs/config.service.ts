@@ -30,7 +30,7 @@ export class ConfigService {
     migrations: ['dist/**/database/migrations/*.js'],
     migrationsRun: process.env['NODE_ENV'] === 'production',
     namingStrategy: new SnakeNamingStrategy(),
-    logging: process.env['NODE_ENV'] === 'development',
+    logging: true,
   } satisfies DataSourceOptions;
 
   REDIS = {
