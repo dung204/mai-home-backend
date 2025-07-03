@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { EmailModule } from '../email/email.module';
+import { MediaModule } from '../media';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './controllers/auth.controller';
 import { Account } from './entities/account.entity';
@@ -21,6 +22,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     forwardRef(() => UsersModule),
     EmailModule,
     HttpModule,
+    MediaModule,
   ],
   controllers: [AuthController],
   providers: [AccountRepository, AuthService, JwtStrategy, JwtGuard],

@@ -18,6 +18,7 @@ import { configs } from '@/base/configs';
 import { RedisService } from '@/base/database';
 import { BaseService } from '@/base/services';
 import { PasswordUtils } from '@/base/utils';
+import { MediaService } from '@/modules/media/services';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/services/users.service';
 
@@ -49,6 +50,7 @@ export class AuthService extends BaseService<Account> {
     @Inject(forwardRef(() => UsersService)) private readonly usersService: UsersService,
     private readonly emailService: MailerService,
     private readonly httpService: HttpService,
+    private readonly mediaService: MediaService,
   ) {
     const logger = new Logger(AuthService.name);
     super(repository, logger);
@@ -319,9 +321,16 @@ export class AuthService extends BaseService<Account> {
             googleId: googleUserInfo.id,
           });
 
+          const { fileName: avatar } = await this.mediaService.uploadFromUrl(
+            googleUserInfo.picture as string,
+            true,
+            `avatars/${userId}`,
+          );
+
           const userInfo = await this.usersService.createOne(newAccount.id, {
             account: newAccount,
             displayName: googleUserInfo.name,
+            avatar,
           });
 
           return {
