@@ -6,7 +6,7 @@ import {
   NotFoundException,
   forwardRef,
 } from '@nestjs/common';
-import { FindManyOptions, FindOneOptions, IsNull } from 'typeorm';
+import { FindManyOptions, FindOneOptions } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 import { BaseService, CustomFindManyOptions } from '@/base/services';
@@ -78,35 +78,36 @@ export class UsersService extends BaseService<User> {
   ): Promise<QueryDeepPartialEntity<User>> {
     const { phone, email, ...dto } = updateDto;
 
-    const [userWithExistedPhone, userWithExistedEmail] = (
-      await Promise.allSettled([
-        this.authService.findOne({
-          where: {
-            phone: !phone ? IsNull() : phone,
-          },
-          withDeleted: true,
-        }),
-        this.authService.findOne({
-          where: {
-            email: !email ? IsNull() : email,
-          },
-          withDeleted: true,
-        }),
-      ])
-    ).map((result) => (result.status === 'fulfilled' ? result.value : null));
-
-    if (userWithExistedPhone && userWithExistedPhone.id !== currentUser.id) {
-      throw new ConflictException({
-        message: `Số điện thoại đã tồn tại. Vui lòng chọn số điện thoại khác`,
-        field: 'phone',
+    if (phone) {
+      const userWithExistedPhone = await this.authService.findOne({
+        where: {
+          phone,
+        },
+        withDeleted: true,
       });
+
+      if (userWithExistedPhone && userWithExistedPhone.id !== currentUser.id) {
+        throw new ConflictException({
+          message: `Số điện thoại đã tồn tại. Vui lòng chọn số điện thoại khác`,
+          field: 'phone',
+        });
+      }
     }
 
-    if (userWithExistedEmail && userWithExistedEmail.id !== currentUser.id) {
-      throw new ConflictException({
-        message: `Email đã tồn tại. Vui lòng chọn email khác`,
-        field: 'email',
+    if (email) {
+      const userWithExistedPhone = await this.authService.findOne({
+        where: {
+          email,
+        },
+        withDeleted: true,
       });
+
+      if (userWithExistedPhone && userWithExistedPhone.id !== currentUser.id) {
+        throw new ConflictException({
+          message: `Email đã tồn tại. Vui lòng chọn email khác`,
+          field: 'email',
+        });
+      }
     }
 
     return {
