@@ -71,7 +71,7 @@ export class BaseService<Entity extends BaseEntity> {
     }
 
     const doc = await this.preUpdate(currentUser, updateDto, oldRecords, options);
-    const newRecords = await this.repository.save(
+    await this.repository.save(
       oldRecords.map((record) => {
         const { updateTimestamp, ...recordData } = record;
         return {
@@ -80,6 +80,7 @@ export class BaseService<Entity extends BaseEntity> {
         } as DeepPartial<Entity>;
       }),
     );
+    const newRecords = (await this.find(options, currentUser))!.data;
     return this.postUpdate(newRecords, oldRecords, updateDto, options, currentUser);
   }
 

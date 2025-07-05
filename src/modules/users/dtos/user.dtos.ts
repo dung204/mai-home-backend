@@ -55,6 +55,13 @@ export class UserProfileDto {
   avatar!: string | null;
 
   @ApiProperty({
+    description: 'The Google ID of the user',
+  })
+  @Expose()
+  @Transform(({ obj: user }) => user.account.googleId)
+  googleId!: string | null;
+
+  @ApiProperty({
     description: 'The timestamp indicating when the user is created',
     example: SwaggerExamples.DATE_FROM,
   })
