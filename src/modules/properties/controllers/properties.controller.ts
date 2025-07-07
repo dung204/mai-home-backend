@@ -53,6 +53,12 @@ export class PropertiesController {
     };
   }
 
+  @Public()
+  @Get('/ids')
+  async findAllPropertyIds() {
+    return this.propertiesService.findAllIds();
+  }
+
   @ApiOperation({
     summary: 'Retrieve all deleted properties of the current user (with metadata)',
   })

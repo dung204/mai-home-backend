@@ -25,6 +25,11 @@ export class PropertiesService extends BaseService<Property> {
     super(repository, logger);
   }
 
+  async findAllIds() {
+    const properties = await this.repository.find();
+    return properties.map((p) => p.id);
+  }
+
   protected async preFind(
     options: CustomFindManyOptions<Property>,
     _currentUser?: User,
